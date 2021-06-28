@@ -60,6 +60,7 @@ def create_custom_dataset(
     folder_names={
         "source1": "source1",
         "source2": "source2",
+        "source3": "source3",
         "mixture": "mixture",
     },
 ):
