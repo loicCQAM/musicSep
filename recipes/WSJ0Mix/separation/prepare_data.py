@@ -71,16 +71,19 @@ def create_custom_dataset(
         mix_path = os.path.join(datapath, set_type, folder_names["mixture"])
         s1_path = os.path.join(datapath, set_type, folder_names["source1"])
         s2_path = os.path.join(datapath, set_type, folder_names["source2"])
+        s3_path = os.path.join(datapath, set_type, folder_names["source3"])
 
         print(mix_path)
         print(s1_path)
         print(s2_path)
+        print(s3_path)
 
         files = os.listdir(mix_path)
 
         mix_fl_paths = [os.path.join(mix_path, fl) for fl in files]
         s1_fl_paths = [os.path.join(s1_path, fl) for fl in files]
         s2_fl_paths = [os.path.join(s2_path, fl) for fl in files]
+        s3_fl_paths = [os.path.join(s3_path, fl) for fl in files]
 
         csv_columns = [
             "ID",
@@ -94,6 +97,9 @@ def create_custom_dataset(
             "s2_wav",
             "s2_wav_format",
             "s2_wav_opts",
+            "s3_wav",
+            "s3_wav_format",
+            "s3_wav_opts",
             "noise_wav",
             "noise_wav_format",
             "noise_wav_opts",
@@ -104,8 +110,8 @@ def create_custom_dataset(
         ) as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
             writer.writeheader()
-            for i, (mix_path, s1_path, s2_path) in enumerate(
-                zip(mix_fl_paths, s1_fl_paths, s2_fl_paths)
+            for i, (mix_path, s1_path, s2_path, s3_path) in enumerate(
+                zip(mix_fl_paths, s1_fl_paths, s2_fl_paths, s3_fl_paths)
             ):
 
                 row = {
@@ -120,6 +126,9 @@ def create_custom_dataset(
                     "s2_wav": s2_path,
                     "s2_wav_format": "wav",
                     "s2_wav_opts": None,
+                    "s3_wav": s3_path,
+                    "s3_wav_format": "wav",
+                    "s3_wav_opts": None,
                 }
                 writer.writerow(row)
 
@@ -136,12 +145,14 @@ def create_wsj_csv(datapath, savepath):
         mix_path = os.path.join(datapath, "wav8k/min/" + set_type + "/mix/")
         s1_path = os.path.join(datapath, "wav8k/min/" + set_type + "/s1/")
         s2_path = os.path.join(datapath, "wav8k/min/" + set_type + "/s2/")
+        s3_path = os.path.join(datapath, "wav8k/min/" + set_type + "/s3/")
 
         files = os.listdir(mix_path)
 
         mix_fl_paths = [mix_path + fl for fl in files]
         s1_fl_paths = [s1_path + fl for fl in files]
         s2_fl_paths = [s2_path + fl for fl in files]
+        s3_fl_paths = [s3_path + fl for fl in files]
 
         csv_columns = [
             "ID",
@@ -155,13 +166,16 @@ def create_wsj_csv(datapath, savepath):
             "s2_wav",
             "s2_wav_format",
             "s2_wav_opts",
+            "s3_wav",
+            "s3_wav_format",
+            "s3_wav_opts",
         ]
 
         with open(savepath + "/wsj_" + set_type + ".csv", "w") as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
             writer.writeheader()
-            for i, (mix_path, s1_path, s2_path) in enumerate(
-                zip(mix_fl_paths, s1_fl_paths, s2_fl_paths)
+            for i, (mix_path, s1_path, s2_path, s3_path) in enumerate(
+                zip(mix_fl_paths, s1_fl_paths, s2_fl_paths, s3_fl_paths)
             ):
 
                 row = {
@@ -176,6 +190,9 @@ def create_wsj_csv(datapath, savepath):
                     "s2_wav": s2_path,
                     "s2_wav_format": "wav",
                     "s2_wav_opts": None,
+                    "s3_wav": s3_path,
+                    "s3_wav_format": "wav",
+                    "s3_wav_opts": None,
                 }
                 writer.writerow(row)
 
