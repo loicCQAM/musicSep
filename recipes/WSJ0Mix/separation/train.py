@@ -35,6 +35,7 @@ import numpy as np
 from tqdm import tqdm
 import csv
 import logging
+from prepare_data import prepare_wsjmix
 
 
 # Define training procedure
@@ -48,7 +49,8 @@ class Separation(sb.Brain):
 
         # Convert targets to tensor
         targets = torch.cat(
-            [targets[i][0].unsqueeze(-1) for i in range(self.hparams.num_spks)],
+            [targets[i][0].unsqueeze(-1)
+             for i in range(self.hparams.num_spks)],
             dim=-1,
         ).to(self.device)
 
@@ -183,7 +185,8 @@ class Separation(sb.Brain):
             targets.append(batch.s3_sig)
 
         with torch.no_grad():
-            predictions, targets = self.compute_forward(mixture, targets, stage)
+            predictions, targets = self.compute_forward(
+                mixture, targets, stage)
             loss = self.compute_objectives(predictions, targets)
 
         # Manage audio file saving
@@ -229,7 +232,8 @@ class Separation(sb.Brain):
             )
         elif stage == sb.Stage.TEST:
             self.hparams.train_logger.log_stats(
-                stats_meta={"Epoch loaded": self.hparams.epoch_counter.current},
+                stats_meta={
+                    "Epoch loaded": self.hparams.epoch_counter.current},
                 test_stats=stage_stats,
             )
 
@@ -292,10 +296,10 @@ class Separation(sb.Brain):
             (1,),
         ).item()
         targets = targets[
-            :, randstart : randstart + self.hparams.training_signal_len, :
+            :, randstart: randstart + self.hparams.training_signal_len, :
         ]
         mixture = mixture[
-            :, randstart : randstart + self.hparams.training_signal_len
+            :, randstart: randstart + self.hparams.training_signal_len
         ]
         return mixture, targets
 
@@ -315,7 +319,8 @@ class Separation(sb.Brain):
         from mir_eval.separation import bss_eval_sources
 
         # Create folders where to store audio
-        save_file = os.path.join(self.hparams.output_folder, "test_results.csv")
+        save_file = os.path.join(
+            self.hparams.output_folder, "test_results.csv")
 
         # Variable init
         all_sdrs = []
@@ -537,9 +542,6 @@ if __name__ == "__main__":
             "Please, specify a valid base_folder_dm folder when using dynamic mixing"
         )
         sys.exit(1)
-
-    # Data preparation
-    from recipes.WSJ0Mix.prepare_data import prepare_wsjmix  # noqa
 
     run_on_main(
         prepare_wsjmix,
