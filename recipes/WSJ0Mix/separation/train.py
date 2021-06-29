@@ -49,13 +49,13 @@ class Separation(sb.Brain):
             [targets[i][0].unsqueeze(-1)
              for i in range(self.hparams.num_spks)],
             dim=-1,
-        ).to(self.device)
+        )
         # mix = targets.sum(-1)
         targets = targets.permute(0, 2, 1).unsqueeze(2)
         mix = targets.sum(dim=1)
 
-        print(type(targets))
-        print(type(mix))
+        targets = targets.cuda()
+        mix = mix.cuda()
 
         # Separation
         estimates = self.hparams.demucs(mix)
@@ -143,6 +143,9 @@ class Separation(sb.Brain):
                 )
                 loss.data = torch.tensor(0).to(self.device)
         self.optimizer.zero_grad()
+
+        # free some space before next round
+        del mixture, targets, predictions
 
         return loss.detach().cpu()
 
