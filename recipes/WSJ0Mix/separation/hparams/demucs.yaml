@@ -10,6 +10,10 @@
 seed: 1234
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
 
+demucs: !new:model.Demucs
+    sources: 3
+    audio_channels: 1
+
 # Data params
 
 # e.g. '/yourpath/wsj0-mix/2speakers'
