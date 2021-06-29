@@ -38,6 +38,8 @@ import logging
 from prepare_data import prepare_wsjmix
 from utils import center_trim
 
+from model import Demucs
+
 
 # Define training procedure
 class Separation(sb.Brain):
@@ -55,7 +57,12 @@ class Separation(sb.Brain):
         mix = targets.sum(dim=1).to(self.device)
 
         # Separation
-        model = self.hparams.demucs().to(self.device)
+        model = Demucs(
+            sources=3,
+            audio_channels=1,
+            resample=False
+        )
+        model = model.to(self.device)
         estimates = model(mix)
         targets = center_trim(targets, estimates)
 
