@@ -52,7 +52,7 @@ class Separation(sb.Brain):
         ).to(self.device)
 
         targets = targets.permute(0, 2, 1).unsqueeze(2)
-        mix = targets.sum(dim=1)
+        mix = targets.sum(dim=1).to(self.device)
 
         # Separation
         estimates = self.hparams.demucs(mix)
