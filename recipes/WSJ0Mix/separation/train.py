@@ -55,9 +55,9 @@ class Separation(sb.Brain):
         mix = targets.sum(dim=1).to(self.device)
 
         # Separation
-        estimates = self.hparams.demucs(mix)
+        model = self.hparams.demucs().to(self.device)
+        estimates = model(mix)
         targets = center_trim(targets, estimates)
-        targets = targets.to(self.device)
 
         print("Hello")
 
