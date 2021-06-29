@@ -50,7 +50,12 @@ class Separation(sb.Brain):
              for i in range(self.hparams.num_spks)],
             dim=-1,
         ).to(self.device)
-        mix = targets.sum(-1)
+        # mix = targets.sum(-1)
+        targets = targets.permute(0, 2, 1).unsqueeze(2)
+        mix = targets.sum(dim=1)
+
+        print(type(targets))
+        print(type(mix))
 
         # Separation
         estimates = self.hparams.demucs(mix)

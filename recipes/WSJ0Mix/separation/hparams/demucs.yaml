@@ -13,6 +13,7 @@ __set_seed: !apply:torch.manual_seed [!ref <seed>]
 demucs: !new:model.Demucs
     sources: 3
     audio_channels: 1
+    resample: False
 
 # Data params
 
@@ -46,7 +47,7 @@ sample_rate: 44100
 
 # Training parameters
 N_epochs: 200
-batch_size: 1
+batch_size: 2
 lr: 0.00015
 clip_grad_norm: 5
 loss_upper_lim: 999999  # this is the upper limit for an acceptable loss

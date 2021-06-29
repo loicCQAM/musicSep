@@ -1,5 +1,5 @@
-# Generated 2021-06-28 from:
-# /Users/loicprenevost/Downloads/loic/musicSep/recipes/WSJ0Mix/separation/hparams/sepformer-customdataset.yaml
+# Generated 2021-06-29 from:
+# /Users/loicprenevost/Downloads/loic/musicSep/recipes/WSJ0Mix/separation/hparams/demucs.yaml
 # yamllint disable
 # ################################
 # Model: SepFormer for source separation
@@ -12,6 +12,11 @@
 #
 seed: 1234
 __set_seed: !apply:torch.manual_seed [1234]
+
+demucs: !new:model.Demucs
+  sources: 3
+  audio_channels: 1
+  resample: false
 
 # Data params
 
@@ -45,7 +50,7 @@ sample_rate: 44100
 
 # Training parameters
 N_epochs: 200
-batch_size: 1
+batch_size: 2
 lr: 0.00015
 clip_grad_norm: 5
 loss_upper_lim: 999999  # this is the upper limit for an acceptable loss
@@ -92,7 +97,7 @@ kernel_stride: 8
 # Dataloader options
 # Set num_workers: 0 on MacOS due to behavior of the multiprocessing library
 dataloader_opts:
-  batch_size: 1
+  batch_size: 2
   num_workers: 0
 
 
