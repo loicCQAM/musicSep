@@ -9,13 +9,14 @@ import math
 import julius
 from torch import nn
 
-from .utils import capture_init, center_trim
+from utils import capture_init, center_trim
 
 
 class BLSTM(nn.Module):
     def __init__(self, dim, layers=1):
         super().__init__()
-        self.lstm = nn.LSTM(bidirectional=True, num_layers=layers, hidden_size=dim, input_size=dim)
+        self.lstm = nn.LSTM(bidirectional=True,
+                            num_layers=layers, hidden_size=dim, input_size=dim)
         self.linear = nn.Linear(2 * dim, dim)
 
     def forward(self, x):
@@ -111,9 +112,11 @@ class Demucs(nn.Module):
         in_channels = audio_channels
         for index in range(depth):
             encode = []
-            encode += [nn.Conv1d(in_channels, channels, kernel_size, stride), nn.ReLU()]
+            encode += [nn.Conv1d(in_channels, channels,
+                                 kernel_size, stride), nn.ReLU()]
             if rewrite:
-                encode += [nn.Conv1d(channels, ch_scale * channels, 1), activation]
+                encode += [nn.Conv1d(channels, ch_scale *
+                                     channels, 1), activation]
             self.encoder.append(nn.Sequential(*encode))
 
             decode = []
@@ -122,8 +125,10 @@ class Demucs(nn.Module):
             else:
                 out_channels = sources * audio_channels
             if rewrite:
-                decode += [nn.Conv1d(channels, ch_scale * channels, context), activation]
-            decode += [nn.ConvTranspose1d(channels, out_channels, kernel_size, stride)]
+                decode += [nn.Conv1d(channels, ch_scale *
+                                     channels, context), activation]
+            decode += [nn.ConvTranspose1d(channels,
+                                          out_channels, kernel_size, stride)]
             if index > 0:
                 decode.append(nn.ReLU())
             self.decoder.insert(0, nn.Sequential(*decode))
