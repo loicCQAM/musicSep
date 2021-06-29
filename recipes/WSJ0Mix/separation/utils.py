@@ -17,9 +17,9 @@ import warnings
 import zlib
 from contextlib import contextmanager
 
-from diffq import UniformQuantizer, DiffQuantizer
+# from diffq import UniformQuantizer, DiffQuantizer
 import torch as th
-import tqdm
+# import tqdm
 from torch import distributed
 from torch.nn import functional as F
 
@@ -34,7 +34,8 @@ def center_trim(tensor, reference):
         reference = reference.size(-1)
     delta = tensor.size(-1) - reference
     if delta < 0:
-        raise ValueError("tensor must be larger than reference. " f"Delta is {delta}.")
+        raise ValueError(
+            "tensor must be larger than reference. " f"Delta is {delta}.")
     if delta:
         tensor = tensor[..., delta // 2:-(delta - delta // 2)]
     return tensor
@@ -45,7 +46,8 @@ def average_metric(metric, count=1.):
     Average `metric` which should be a float across all hosts. `count` should be
     the weight for this particular host (i.e. number of examples).
     """
-    metric = th.tensor([count, count * metric], dtype=th.float32, device='cuda')
+    metric = th.tensor([count, count * metric],
+                       dtype=th.float32, device='cuda')
     distributed.all_reduce(metric, op=distributed.ReduceOp.SUM)
     return metric[1].item() / metric[0].item()
 
@@ -132,7 +134,8 @@ class TensorChunk:
         pad_left = correct_start - start
         pad_right = end - correct_end
 
-        out = F.pad(self.tensor[..., correct_start:correct_end], (pad_left, pad_right))
+        out = F.pad(
+            self.tensor[..., correct_start:correct_end], (pad_left, pad_right))
         assert out.shape[-1] == target_length
         return out
 
@@ -171,7 +174,8 @@ def apply_model(model, mix, shifts=None, split=False,
         offsets = range(0, length, stride)
         scale = stride / model.samplerate
         if progress:
-            offsets = tqdm.tqdm(offsets, unit_scale=scale, ncols=120, unit='seconds')
+            offsets = tqdm.tqdm(offsets, unit_scale=scale,
+                                ncols=120, unit='seconds')
         # We start from a triangle shaped weight, with maximal weight in the middle
         # of the segment. Then we normalize and take to the power `transition_power`.
         # Large values of transition power will lead to sharper transitions.
@@ -198,7 +202,8 @@ def apply_model(model, mix, shifts=None, split=False,
         out = 0
         for _ in range(shifts):
             offset = random.randint(0, max_shift)
-            shifted = TensorChunk(padded_mix, offset, length + max_shift - offset)
+            shifted = TensorChunk(padded_mix, offset,
+                                  length + max_shift - offset)
             shifted_out = apply_model(model, shifted)
             out += shifted_out[..., max_shift - offset:]
         out /= shifts
@@ -234,7 +239,7 @@ def get_quantizer(model, args, optimizer=None):
             quantizer.setup_optimizer(optimizer)
     elif args.qat:
         quantizer = UniformQuantizer(
-                model, bits=args.qat, min_size=args.q_min_size)
+            model, bits=args.qat, min_size=args.q_min_size)
     return quantizer
 
 
