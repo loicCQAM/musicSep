@@ -38,13 +38,15 @@ import logging
 from prepare_data import prepare_wsjmix
 from utils import center_trim
 
-from model import Demucs
-
 
 # Define training procedure
 class Separation(sb.Brain):
     def compute_forward(self, mix, targets, stage, noise=None):
         """Forward computations from the mixture to the separated signals."""
+
+        # Unpack lists and put tensors in the right device
+        mix, mix_lens = mix
+        mix, mix_lens = mix.to(self.device), mix_lens.to(self.device)
 
         # Convert targets to tensor
         targets = torch.cat(
@@ -53,22 +55,44 @@ class Separation(sb.Brain):
             dim=-1,
         ).to(self.device)
 
-        targets = targets.permute(0, 2, 1).unsqueeze(2)
-        mix = targets.sum(dim=1).to(self.device)
+        # Add speech distortions
+        if stage == sb.Stage.TRAIN:
+            with torch.no_grad():
+                if self.hparams.use_speedperturb or self.hparams.use_rand_shift:
+                    mix, targets = self.add_speed_perturb(targets, mix_lens)
+
+                    mix = targets.sum(-1)
+
+                if self.hparams.use_wavedrop:
+                    mix = self.hparams.wavedrop(mix, mix_lens)
+
+                if self.hparams.limit_training_signal_len:
+                    mix, targets = self.cut_signals(mix, targets)
 
         # Separation
-        model = Demucs(
-            sources=3,
-            audio_channels=1,
-            resample=False
+        mix_w = self.hparams.Encoder(mix)
+        est_mask = self.hparams.MaskNet(mix_w)
+        mix_w = torch.stack([mix_w] * self.hparams.num_spks)
+        sep_h = mix_w * est_mask
+
+        # Decoding
+        est_source = torch.cat(
+            [
+                self.hparams.Decoder(sep_h[i]).unsqueeze(-1)
+                for i in range(self.hparams.num_spks)
+            ],
+            dim=-1,
         )
-        model = model.to(self.device)
-        estimates = model(mix)
-        targets = center_trim(targets, estimates)
 
-        print("Hello")
+        # T changed after conv1d in encoder, fix it here
+        T_origin = mix.size(1)
+        T_est = est_source.size(1)
+        if T_origin > T_est:
+            est_source = F.pad(est_source, (0, 0, 0, T_origin - T_est))
+        else:
+            est_source = est_source[:, :T_origin, :]
 
-        return estimates, targets
+        return est_source, targets
 
     def compute_objectives(self, predictions, targets):
         """Computes the sinr loss"""
@@ -78,16 +102,7 @@ class Separation(sb.Brain):
         """Trains one batch"""
         # Unpacking batch list
         mixture = batch.mix_sig
-        targets = [batch.s1_sig, batch.s2_sig]
-
-        if self.hparams.num_spks == 3:
-            targets.append(batch.s3_sig)
-
-        print("************")
-        print("************")
-        print(len(targets))
-        print("************")
-        print("************")
+        targets = [batch.s1_sig, batch.s2_sig, batch.s3_sig, batch.s4_sig]
 
         if self.hparams.auto_mix_prec:
             with autocast():
@@ -157,18 +172,13 @@ class Separation(sb.Brain):
                 loss.data = torch.tensor(0).to(self.device)
         self.optimizer.zero_grad()
 
-        # free some space before next round
-        del mixture, targets, predictions
-
         return loss.detach().cpu()
 
     def evaluate_batch(self, batch, stage):
         """Computations needed for validation/test batches"""
         snt_id = batch.id
         mixture = batch.mix_sig
-        targets = [batch.s1_sig, batch.s2_sig]
-        if self.hparams.num_spks == 3:
-            targets.append(batch.s3_sig)
+        targets = [batch.s1_sig, batch.s2_sig, batch.s3_sig, batch.s4_sig]
 
         with torch.no_grad():
             predictions, targets = self.compute_forward(
@@ -330,9 +340,8 @@ class Separation(sb.Brain):
                     # Apply Separation
                     mixture, mix_len = batch.mix_sig
                     snt_id = batch.id
-                    targets = [batch.s1_sig, batch.s2_sig]
-                    if self.hparams.num_spks == 3:
-                        targets.append(batch.s3_sig)
+                    targets = [batch.s1_sig, batch.s2_sig,
+                               batch.s3_sig, batch.s4_sig]
 
                     with torch.no_grad():
                         predictions, targets = self.compute_forward(
@@ -475,26 +484,26 @@ def dataio_prep(hparams):
         s2_sig = sb.dataio.dataio.read_audio(s2_wav)
         return s2_sig
 
-    if hparams["num_spks"] == 3:
+    @sb.utils.data_pipeline.takes("s3_wav")
+    @sb.utils.data_pipeline.provides("s3_sig")
+    def audio_pipeline_s3(s3_wav):
+        s3_sig = sb.dataio.dataio.read_audio(s3_wav)
+        return s3_sig
 
-        @sb.utils.data_pipeline.takes("s3_wav")
-        @sb.utils.data_pipeline.provides("s3_sig")
-        def audio_pipeline_s3(s3_wav):
-            s3_sig = sb.dataio.dataio.read_audio(s3_wav)
-            return s3_sig
+    @sb.utils.data_pipeline.takes("s4_wav")
+    @sb.utils.data_pipeline.provides("s4_sig")
+    def audio_pipeline_s4(s4_wav):
+        s4_sig = sb.dataio.dataio.read_audio(s4_wav)
+        return s4_sig
 
     sb.dataio.dataset.add_dynamic_item(datasets, audio_pipeline_mix)
     sb.dataio.dataset.add_dynamic_item(datasets, audio_pipeline_s1)
     sb.dataio.dataset.add_dynamic_item(datasets, audio_pipeline_s2)
-    if hparams["num_spks"] == 3:
-        sb.dataio.dataset.add_dynamic_item(datasets, audio_pipeline_s3)
-        sb.dataio.dataset.set_output_keys(
-            datasets, ["id", "mix_sig", "s1_sig", "s2_sig", "s3_sig"]
-        )
-    else:
-        sb.dataio.dataset.set_output_keys(
-            datasets, ["id", "mix_sig", "s1_sig", "s2_sig"]
-        )
+    sb.dataio.dataset.add_dynamic_item(datasets, audio_pipeline_s3)
+    sb.dataio.dataset.add_dynamic_item(datasets, audio_pipeline_s4)
+    sb.dataio.dataset.set_output_keys(
+        datasets, ["id", "mix_sig", "s1_sig", "s2_sig", "s3_sig", "s4_sig"]
+    )
 
     return train_data, valid_data, test_data
 
