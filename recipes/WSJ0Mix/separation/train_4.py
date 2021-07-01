@@ -55,10 +55,6 @@ class Separation(sb.Brain):
             dim=-1,
         ).to(self.device)
 
-        print("**************")
-        print(targets.shape)
-        print("**************")
-
         # Add speech distortions
         if stage == sb.Stage.TRAIN:
             with torch.no_grad():
