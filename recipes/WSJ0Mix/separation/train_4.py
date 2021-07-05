@@ -469,30 +469,35 @@ def dataio_prep(hparams):
     @sb.utils.data_pipeline.takes("mix_wav")
     @sb.utils.data_pipeline.provides("mix_sig")
     def audio_pipeline_mix(mix_wav):
+        print(mix_wav)
         mix_sig = sb.dataio.dataio.read_audio(mix_wav)
         return mix_sig
 
     @sb.utils.data_pipeline.takes("s1_wav")
     @sb.utils.data_pipeline.provides("s1_sig")
     def audio_pipeline_s1(s1_wav):
+        print(s1_wav)
         s1_sig = sb.dataio.dataio.read_audio(s1_wav)
         return s1_sig
 
     @sb.utils.data_pipeline.takes("s2_wav")
     @sb.utils.data_pipeline.provides("s2_sig")
     def audio_pipeline_s2(s2_wav):
+        print(s2_wav)
         s2_sig = sb.dataio.dataio.read_audio(s2_wav)
         return s2_sig
 
     @sb.utils.data_pipeline.takes("s3_wav")
     @sb.utils.data_pipeline.provides("s3_sig")
     def audio_pipeline_s3(s3_wav):
+        print(s3_wav)
         s3_sig = sb.dataio.dataio.read_audio(s3_wav)
         return s3_sig
 
     @sb.utils.data_pipeline.takes("s4_wav")
     @sb.utils.data_pipeline.provides("s4_sig")
     def audio_pipeline_s4(s4_wav):
+        print(s4_wav)
         s4_sig = sb.dataio.dataio.read_audio(s4_wav)
         return s4_sig
 

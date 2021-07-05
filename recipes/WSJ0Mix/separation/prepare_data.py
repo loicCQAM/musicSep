@@ -67,12 +67,6 @@ def create_custom_dataset(
         s3_path = os.path.join(datapath, set_type, folder_names["other"])
         s4_path = os.path.join(datapath, set_type, folder_names["vocals"])
 
-        print(mix_path)
-        print(s1_path)
-        print(s2_path)
-        print(s3_path)
-        print(s4_path)
-
         files = os.listdir(mix_path)
 
         mix_fl_paths = [os.path.join(mix_path, fl) for fl in files]
