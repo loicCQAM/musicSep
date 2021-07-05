@@ -49,10 +49,10 @@ def create_custom_dataset(
     dataset_name="custom",
     set_types=["train", "valid", "test"],
     folder_names={
-        "source1": "source1",
-        "source2": "source2",
-        "source3": "source3",
-        "source4": "source4",
+        "bass": "bass",
+        "drums": "drums",
+        "other": "other",
+        "vocals": "vocals",
         "mixture": "mixture",
     },
 ):
@@ -62,10 +62,10 @@ def create_custom_dataset(
 
     for set_type in set_types:
         mix_path = os.path.join(datapath, set_type, folder_names["mixture"])
-        s1_path = os.path.join(datapath, set_type, folder_names["source1"])
-        s2_path = os.path.join(datapath, set_type, folder_names["source2"])
-        s3_path = os.path.join(datapath, set_type, folder_names["source3"])
-        s4_path = os.path.join(datapath, set_type, folder_names["source4"])
+        s1_path = os.path.join(datapath, set_type, folder_names["bass"])
+        s2_path = os.path.join(datapath, set_type, folder_names["drums"])
+        s3_path = os.path.join(datapath, set_type, folder_names["other"])
+        s4_path = os.path.join(datapath, set_type, folder_names["vocals"])
 
         print(mix_path)
         print(s1_path)
