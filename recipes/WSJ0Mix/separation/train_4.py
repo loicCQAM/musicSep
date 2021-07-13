@@ -365,60 +365,49 @@ class Separation(sb.Brain):
                     eval_targets = targets[0].t().cpu().numpy()
                     eval_predictions = predictions[0].t().detach().cpu().numpy()
 
-                    print(np.sum(eval_targets[0]))
-                    print(np.sum(eval_targets[1]))
-                    print(np.sum(eval_targets[2]))
-                    print(np.sum(eval_targets[3]))
+                    has_zeros = False
 
                     if np.sum(eval_targets[0]) == 0:
-                        print("0 is zero")
-                        eval_targets[0][0] = 0.1
+                        has_zeros = True
 
                     if np.sum(eval_targets[1]) == 0:
-                        print("1 is zero")
-                        eval_targets[1][0] = 0.1
+                        has_zeros = True
 
                     if np.sum(eval_targets[2]) == 0:
-                        print("2 is zero")
-                        eval_targets[2][0] = 0.1
+                        has_zeros = True
 
                     if np.sum(eval_targets[3]) == 0:
-                        print("3 is zero")
-                        eval_targets[3][0] = 0.1
+                        has_zeros = True
 
-                    print(np.sum(eval_targets[0]))
-                    print(np.sum(eval_targets[1]))
-                    print(np.sum(eval_targets[2]))
-                    print(np.sum(eval_targets[3]))
+                    if not has_zeros:
+                        # Compute SDR
+                        sdr, _, _, _ = bss_eval_sources(
+                            eval_targets,
+                            eval_predictions,
+                        )
 
-                    # Compute SDR
-                    sdr, _, _, _ = bss_eval_sources(
-                        eval_targets,
-                        eval_predictions,
-                    )
+                        # sdr_baseline, _, _, _ = bss_eval_sources(
+                        #     targets[0].t().cpu().numpy(),
+                        #     mixture_signal[0].t().detach().cpu().numpy(),
+                        # )
 
-                    # sdr_baseline, _, _, _ = bss_eval_sources(
-                    #     targets[0].t().cpu().numpy(),
-                    #     mixture_signal[0].t().detach().cpu().numpy(),
-                    # )
+                        # sdr_i = sdr.mean() - sdr_baseline.mean()
 
-                    # sdr_i = sdr.mean() - sdr_baseline.mean()
+                        # Saving on a csv file
+                        row = {
+                            "snt_id": snt_id[0],
+                            "sdr": sdr.mean(),
+                            # "sdr_i": sdr_i,
+                            "loss": loss.item(),
+                            # "si-snr_i": -sisnr_i.item(),
+                        }
+                        writer.writerow(row)
 
-                    # Saving on a csv file
-                    row = {
-                        "snt_id": snt_id[0],
-                        "sdr": sdr.mean(),
-                        # "sdr_i": sdr_i,
-                        "loss": loss.item(),
-                        # "si-snr_i": -sisnr_i.item(),
-                    }
-                    writer.writerow(row)
-
-                    # Metric Accumulation
-                    all_sdrs.append(sdr.mean())
-                    # all_sdrs_i.append(sdr_i.mean())
-                    all_losses.append(loss.item())
-                    # all_sisnrs_i.append(-sisnr_i.item())
+                        # Metric Accumulation
+                        all_sdrs.append(sdr.mean())
+                        # all_sdrs_i.append(sdr_i.mean())
+                        all_losses.append(loss.item())
+                        # all_sisnrs_i.append(-sisnr_i.item())
 
                 row = {
                     "snt_id": "avg",
