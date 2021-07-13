@@ -320,10 +320,11 @@ class Separation(sb.Brain):
 
         # Variable init
         all_sdrs = []
-        all_sdrs_i = []
-        all_sisnrs = []
-        all_sisnrs_i = []
-        csv_columns = ["snt_id", "sdr", "sdr_i", "si-snr", "si-snr_i"]
+        #all_sdrs_i = []
+        all_losses = []
+        #all_sisnrs_i = []
+        #csv_columns = ["snt_id", "sdr", "sdr_i", "si-snr", "si-snr_i"]
+        csv_columns = ["snt_id", "sdr", "loss"]
 
         test_loader = sb.dataio.dataloader.make_dataloader(
             test_data, **self.hparams.dataloader_opts
@@ -338,7 +339,7 @@ class Separation(sb.Brain):
                 for i, batch in enumerate(t):
 
                     # Apply Separation
-                    mixture, mix_len = batch.mix_sig
+                    #mixture, mix_len = batch.mix_sig
                     snt_id = batch.id
                     targets = [batch.s1_sig, batch.s2_sig,
                                batch.s3_sig, batch.s4_sig]
@@ -349,60 +350,63 @@ class Separation(sb.Brain):
                         )
 
                     # Compute SI-SNR
-                    sisnr = self.compute_objectives(predictions, targets)
+                    loss = self.compute_objectives(predictions, targets)
 
                     # Compute SI-SNR improvement
-                    mixture_signal = torch.stack(
-                        [mixture] * self.hparams.num_spks, dim=-1
-                    )
-                    mixture_signal = mixture_signal.to(targets.device)
-                    sisnr_baseline = self.compute_objectives(
-                        mixture_signal, targets
-                    )
-                    sisnr_i = sisnr - sisnr_baseline
+                    # mixture_signal = torch.stack(
+                    #     [mixture] * self.hparams.num_spks, dim=-1
+                    # )
+                    # mixture_signal = mixture_signal.to(targets.device)
+                    # sisnr_baseline = self.compute_objectives(
+                    #     mixture_signal, targets
+                    # )
+                    # sisnr_i = sisnr - sisnr_baseline
+
+                    eval_targets = targets[0].t().cpu().numpy()
+                    eval_predictions = predictions[0].t().detach().cpu().numpy()
 
                     # Compute SDR
                     sdr, _, _, _ = bss_eval_sources(
-                        targets[0].t().cpu().numpy(),
-                        predictions[0].t().detach().cpu().numpy(),
+                        eval_targets,
+                        eval_predictions,
                     )
 
-                    sdr_baseline, _, _, _ = bss_eval_sources(
-                        targets[0].t().cpu().numpy(),
-                        mixture_signal[0].t().detach().cpu().numpy(),
-                    )
+                    # sdr_baseline, _, _, _ = bss_eval_sources(
+                    #     targets[0].t().cpu().numpy(),
+                    #     mixture_signal[0].t().detach().cpu().numpy(),
+                    # )
 
-                    sdr_i = sdr.mean() - sdr_baseline.mean()
+                    # sdr_i = sdr.mean() - sdr_baseline.mean()
 
                     # Saving on a csv file
                     row = {
                         "snt_id": snt_id[0],
                         "sdr": sdr.mean(),
-                        "sdr_i": sdr_i,
-                        "si-snr": -sisnr.item(),
-                        "si-snr_i": -sisnr_i.item(),
+                        # "sdr_i": sdr_i,
+                        "loss": loss.item(),
+                        # "si-snr_i": -sisnr_i.item(),
                     }
                     writer.writerow(row)
 
                     # Metric Accumulation
                     all_sdrs.append(sdr.mean())
-                    all_sdrs_i.append(sdr_i.mean())
-                    all_sisnrs.append(-sisnr.item())
-                    all_sisnrs_i.append(-sisnr_i.item())
+                    # all_sdrs_i.append(sdr_i.mean())
+                    all_losses.append(loss.item())
+                    # all_sisnrs_i.append(-sisnr_i.item())
 
                 row = {
                     "snt_id": "avg",
                     "sdr": np.array(all_sdrs).mean(),
-                    "sdr_i": np.array(all_sdrs_i).mean(),
-                    "si-snr": np.array(all_sisnrs).mean(),
-                    "si-snr_i": np.array(all_sisnrs_i).mean(),
+                    # "sdr_i": np.array(all_sdrs_i).mean(),
+                    "loss": np.array(all_losses).mean(),
+                    # "si-snr_i": np.array(all_sisnrs_i).mean(),
                 }
                 writer.writerow(row)
 
-        logger.info("Mean SISNR is {}".format(np.array(all_sisnrs).mean()))
-        logger.info("Mean SISNRi is {}".format(np.array(all_sisnrs_i).mean()))
+        logger.info("Mean loss is {}".format(np.array(all_losses).mean()))
+        #logger.info("Mean SISNRi is {}".format(np.array(all_sisnrs_i).mean()))
         logger.info("Mean SDR is {}".format(np.array(all_sdrs).mean()))
-        logger.info("Mean SDRi is {}".format(np.array(all_sdrs_i).mean()))
+        #logger.info("Mean SDRi is {}".format(np.array(all_sdrs_i).mean()))
 
     def save_audio(self, snt_id, mixture, targets, predictions):
         "saves the test audio (mixture, targets, and estimated sources) on disk"
