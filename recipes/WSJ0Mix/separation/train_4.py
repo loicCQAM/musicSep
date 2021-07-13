@@ -365,7 +365,10 @@ class Separation(sb.Brain):
                     eval_targets = targets[0].t().cpu().numpy()
                     eval_predictions = predictions[0].t().detach().cpu().numpy()
 
-                    print(eval_targets.shape)
+                    print(np.sum(eval_targets[0]))
+                    print(np.sum(eval_targets[1]))
+                    print(np.sum(eval_targets[2]))
+                    print(np.sum(eval_targets[3]))
 
                     # Compute SDR
                     sdr, _, _, _ = bss_eval_sources(
