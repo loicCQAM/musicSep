@@ -379,6 +379,18 @@ class Separation(sb.Brain):
                     if np.sum(eval_targets[3]) == 0:
                         has_zeros = True
 
+                    if np.sum(eval_predictions[0]) == 0:
+                        has_zeros = True
+
+                    if np.sum(eval_predictions[1]) == 0:
+                        has_zeros = True
+
+                    if np.sum(eval_predictions[2]) == 0:
+                        has_zeros = True
+
+                    if np.sum(eval_predictions[3]) == 0:
+                        has_zeros = True
+
                     if not has_zeros:
                         # Compute SDR
                         sdr, _, _, _ = bss_eval_sources(
