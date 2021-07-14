@@ -36,7 +36,7 @@ from tqdm import tqdm
 import csv
 import logging
 from prepare_data import prepare_wsjmix
-from utils import center_trim
+from utils import center_trim, is_empty_source
 
 
 # Define training procedure
@@ -55,44 +55,47 @@ class Separation(sb.Brain):
             dim=-1,
         ).to(self.device)
 
-        # Add speech distortions
-        if stage == sb.Stage.TRAIN:
-            with torch.no_grad():
-                if self.hparams.use_speedperturb or self.hparams.use_rand_shift:
-                    mix, targets = self.add_speed_perturb(targets, mix_lens)
+        if not is_empty_source(targets):
+            # Add speech distortions
+            if stage == sb.Stage.TRAIN:
+                with torch.no_grad():
+                    if self.hparams.use_speedperturb or self.hparams.use_rand_shift:
+                        mix, targets = self.add_speed_perturb(targets, mix_lens)
 
-                    mix = targets.sum(-1)
+                        mix = targets.sum(-1)
 
-                if self.hparams.use_wavedrop:
-                    mix = self.hparams.wavedrop(mix, mix_lens)
+                    if self.hparams.use_wavedrop:
+                        mix = self.hparams.wavedrop(mix, mix_lens)
 
-                if self.hparams.limit_training_signal_len:
-                    mix, targets = self.cut_signals(mix, targets)
+                    if self.hparams.limit_training_signal_len:
+                        mix, targets = self.cut_signals(mix, targets)
 
-        # Separation
-        mix_w = self.hparams.Encoder(mix)
-        est_mask = self.hparams.MaskNet(mix_w)
-        mix_w = torch.stack([mix_w] * self.hparams.num_spks)
-        sep_h = mix_w * est_mask
+            # Separation
+            mix_w = self.hparams.Encoder(mix)
+            est_mask = self.hparams.MaskNet(mix_w)
+            mix_w = torch.stack([mix_w] * self.hparams.num_spks)
+            sep_h = mix_w * est_mask
 
-        # Decoding
-        est_source = torch.cat(
-            [
-                self.hparams.Decoder(sep_h[i]).unsqueeze(-1)
-                for i in range(self.hparams.num_spks)
-            ],
-            dim=-1,
-        )
+            # Decoding
+            est_source = torch.cat(
+                [
+                    self.hparams.Decoder(sep_h[i]).unsqueeze(-1)
+                    for i in range(self.hparams.num_spks)
+                ],
+                dim=-1,
+            )
 
-        # T changed after conv1d in encoder, fix it here
-        T_origin = mix.size(1)
-        T_est = est_source.size(1)
-        if T_origin > T_est:
-            est_source = F.pad(est_source, (0, 0, 0, T_origin - T_est))
+            # T changed after conv1d in encoder, fix it here
+            T_origin = mix.size(1)
+            T_est = est_source.size(1)
+            if T_origin > T_est:
+                est_source = F.pad(est_source, (0, 0, 0, T_origin - T_est))
+            else:
+                est_source = est_source[:, :T_origin, :]
+
+            return est_source, targets
         else:
-            est_source = est_source[:, :T_origin, :]
-
-        return est_source, targets
+            pass
 
     def compute_objectives(self, predictions, targets):
         """Computes the sinr loss"""
@@ -367,42 +370,8 @@ class Separation(sb.Brain):
 
                     has_zeros = False
 
-                    if np.sum(eval_targets[0]) == 0:
+                    if is_empty_source(eval_targets) or is_empty_source(eval_predictions):
                         has_zeros = True
-
-                    if np.sum(eval_targets[1]) == 0:
-                        has_zeros = True
-
-                    if np.sum(eval_targets[2]) == 0:
-                        has_zeros = True
-
-                    if np.sum(eval_targets[3]) == 0:
-                        has_zeros = True
-
-                    if np.sum(eval_predictions[0]) == 0:
-                        has_zeros = True
-
-                    if np.sum(eval_predictions[1]) == 0:
-                        has_zeros = True
-
-                    if np.sum(eval_predictions[2]) == 0:
-                        has_zeros = True
-
-                    if np.sum(eval_predictions[3]) == 0:
-                        has_zeros = True
-
-                    print(np.sum(eval_targets[0]))
-                    print(np.sum(eval_targets[1]))
-                    print(np.sum(eval_targets[2]))
-                    print(np.sum(eval_targets[3]))
-                    print(np.sum(eval_predictions[0]))
-                    print(np.sum(eval_predictions[1]))
-                    print(np.sum(eval_predictions[2]))
-                    print(np.sum(eval_predictions[3]))
-                    print(has_zeros)
-                    print(not has_zeros)
-                    print("---------------")
-                    print("---------------")
 
                     if not has_zeros:
                         # Compute SDR

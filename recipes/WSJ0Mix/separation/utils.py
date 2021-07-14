@@ -8,6 +8,7 @@ import errno
 import functools
 import hashlib
 import inspect
+import numpy as np
 import io
 import os
 import random
@@ -39,6 +40,15 @@ def center_trim(tensor, reference):
     if delta:
         tensor = tensor[..., delta // 2:-(delta - delta // 2)]
     return tensor
+
+
+def is_empty_source(source):
+    empty = False
+    dims = source.shape[0]
+    for d in dims:
+        if np.sum(source[d]) == 0:
+            empty = True
+    return empty
 
 
 def average_metric(metric, count=1.):
