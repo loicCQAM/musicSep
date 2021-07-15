@@ -49,8 +49,6 @@ from torch.utils.data import Dataset, DataLoader
 import museval
 import musdb
 
-from utils import is_empty_source
-
 
 # Define training procedure
 class Separation(sb.Brain):
@@ -208,92 +206,85 @@ class Separation(sb.Brain):
                 predictions = predictions.to("cpu")
                 targets = targets.to("cpu")
 
-                has_zeros = False
+                i = self.testindex
+                # track = self.test_mus.tracks[i]
 
-                if is_empty_source(targets) or is_empty_source(predictions):
-                    has_zeros = True
+                # scores = museval.evaluate(targets[:, :, :lim, :].squeeze(0), predictions.squeeze(0).permute(0, 2, 1))
+                estimates = {
+                    "vocals": predictions[0, -1, :, :].t().numpy(),
+                    "drums": predictions[0, 0, :, :].t().numpy(),
+                    "bass": predictions[0, 1, :, :].t().numpy(),
+                    "accompaniment": predictions[0, 2, :, :].t().numpy(),
+                }
+                # scores = museval.eval_mus_track(track, estimates)
 
-                if not has_zeros:
+                scores1, _, _, _ = bss_eval_sources(
+                    targets[0, :, :lim, 0].numpy(),
+                    predictions[0, :, 0, :].numpy(),
+                )
+                scores2, _, _, _ = bss_eval_sources(
+                    targets[0, :, :lim, 1].numpy(),
+                    predictions[0, :, 1, :].numpy(),
+                )
+                scores = np.stack([scores1, scores2])
 
-                    i = self.testindex
-                    # track = self.test_mus.tracks[i]
+                # scores = museval.evaluate(targets[0, :, :lim, :], predictions[0].permute(0, 2, 1))
 
-                    # scores = museval.evaluate(targets[:, :, :lim, :].squeeze(0), predictions.squeeze(0).permute(0, 2, 1))
-                    estimates = {
-                        "vocals": predictions[0, -1, :, :].t().numpy(),
-                        "drums": predictions[0, 0, :, :].t().numpy(),
-                        "bass": predictions[0, 1, :, :].t().numpy(),
-                        "accompaniment": predictions[0, 2, :, :].t().numpy(),
-                    }
-                    # scores = museval.eval_mus_track(track, estimates)
+                self.all_scores.append(scores)
 
-                    scores1, _, _, _ = bss_eval_sources(
-                        targets[0, :, :lim, 0].numpy(),
-                        predictions[0, :, 0, :].numpy(),
+                results_path = self.hparams.save_folder + "/audio_results"
+
+                if not os.path.exists(results_path):
+                    os.makedirs(results_path)
+
+                if i < 5:
+                    torchaudio.save(
+                        filepath=results_path + "/mix_{}.wav".format(i),
+                        src=mixture[0, :, :lim],
+                        sample_rate=16000 #self.hparams.sample_rate,
                     )
-                    scores2, _, _, _ = bss_eval_sources(
-                        targets[0, :, :lim, 1].numpy(),
-                        predictions[0, :, 1, :].numpy(),
+                    torchaudio.save(
+                        filepath=results_path + "/source1hat_{}.wav".format(i),
+                        src=predictions[0, 0, :, :],
+                        sample_rate=16000 #self.hparams.sample_rate,
                     )
-                    scores = np.stack([scores1, scores2])
+                    torchaudio.save(
+                        filepath=results_path + "/source2hat_{}.wav".format(i),
+                        src=predictions[0, 1, :, :],
+                        sample_rate=16000 #self.hparams.sample_rate,
+                    )
+                    torchaudio.save(
+                        filepath=results_path + "/source3hat_{}.wav".format(i),
+                        src=predictions[0, 2, :, :],
+                        sample_rate=16000 #self.hparams.sample_rate,
+                    )
+                    torchaudio.save(
+                        filepath=results_path + "/source4hat_{}.wav".format(i),
+                        src=predictions[0, 3, :, :],
+                        sample_rate=16000 #self.hparams.sample_rate,
+                    )
 
-                    # scores = museval.evaluate(targets[0, :, :lim, :], predictions[0].permute(0, 2, 1))
-
-                    self.all_scores.append(scores)
-
-                    results_path = self.hparams.save_folder + "/audio_results"
-
-                    if not os.path.exists(results_path):
-                        os.makedirs(results_path)
-
-                    if i < 5:
-                        torchaudio.save(
-                            filepath=results_path + "/mix_{}.wav".format(i),
-                            src=mixture[0, :, :lim],
-                            sample_rate=16000 #self.hparams.sample_rate,
-                        )
-                        torchaudio.save(
-                            filepath=results_path + "/source1hat_{}.wav".format(i),
-                            src=predictions[0, 0, :, :],
-                            sample_rate=16000 #self.hparams.sample_rate,
-                        )
-                        torchaudio.save(
-                            filepath=results_path + "/source2hat_{}.wav".format(i),
-                            src=predictions[0, 1, :, :],
-                            sample_rate=16000 #self.hparams.sample_rate,
-                        )
-                        torchaudio.save(
-                            filepath=results_path + "/source3hat_{}.wav".format(i),
-                            src=predictions[0, 2, :, :],
-                            sample_rate=16000 #self.hparams.sample_rate,
-                        )
-                        torchaudio.save(
-                            filepath=results_path + "/source4hat_{}.wav".format(i),
-                            src=predictions[0, 3, :, :],
-                            sample_rate=16000 #self.hparams.sample_rate,
-                        )
-
-                        torchaudio.save(
-                            filepath=results_path + "/source1_{}.wav".format(i),
-                            src=targets[0, 0, :lim, :].t(),
-                            sample_rate=16000 #self.hparams.sample_rate,
-                        )
-                        torchaudio.save(
-                            filepath=results_path + "/source2_{}.wav".format(i),
-                            src=targets[0, 1, :lim, :].t(),
-                            sample_rate=16000 #self.hparams.sample_rate,
-                        )
-                        torchaudio.save(
-                            filepath=results_path + "/source3_{}.wav".format(i),
-                            src=targets[0, 2, :lim, :].t(),
-                            sample_rate=16000 #self.hparams.sample_rate,
-                        )
-                        torchaudio.save(
-                            filepath=results_path + "/source4_{}.wav".format(i),
-                            src=targets[0, 3, :lim, :].t(),
-                            sample_rate=16000 #self.hparams.sample_rate,
-                        )
-                        self.testindex = self.testindex + 1
+                    torchaudio.save(
+                        filepath=results_path + "/source1_{}.wav".format(i),
+                        src=targets[0, 0, :lim, :].t(),
+                        sample_rate=16000 #self.hparams.sample_rate,
+                    )
+                    torchaudio.save(
+                        filepath=results_path + "/source2_{}.wav".format(i),
+                        src=targets[0, 1, :lim, :].t(),
+                        sample_rate=16000 #self.hparams.sample_rate,
+                    )
+                    torchaudio.save(
+                        filepath=results_path + "/source3_{}.wav".format(i),
+                        src=targets[0, 2, :lim, :].t(),
+                        sample_rate=16000 #self.hparams.sample_rate,
+                    )
+                    torchaudio.save(
+                        filepath=results_path + "/source4_{}.wav".format(i),
+                        src=targets[0, 3, :lim, :].t(),
+                        sample_rate=16000 #self.hparams.sample_rate,
+                    )
+                    self.testindex = self.testindex + 1
 
                 loss = torch.tensor([0])
 
