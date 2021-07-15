@@ -238,50 +238,50 @@ class Separation(sb.Brain):
 
                 if i < 5:
                     torchaudio.save(
-                        "audiores/mix_{}.wav".format(i),
-                        mixture[0, :, :lim],
-                        16000 #self.hparams.sample_rate,
+                        filepath="audiores/mix_{}.wav".format(i),
+                        src=mixture[0, :, :lim],
+                        sample_rate=16000 #self.hparams.sample_rate,
                     )
                     torchaudio.save(
-                        "audiores/source1hat_{}.wav".format(i),
-                        predictions[0, 0, :, :],
-                        16000 #self.hparams.sample_rate,
+                        filepath="audiores/source1hat_{}.wav".format(i),
+                        src=predictions[0, 0, :, :],
+                        sample_rate=16000 #self.hparams.sample_rate,
                     )
                     torchaudio.save(
-                        "audiores/source2hat_{}.wav".format(i),
-                        predictions[0, 1, :, :],
-                        16000 #self.hparams.sample_rate,
+                        filepath="audiores/source2hat_{}.wav".format(i),
+                        src=predictions[0, 1, :, :],
+                        sample_rate=16000 #self.hparams.sample_rate,
                     )
                     torchaudio.save(
-                        "audiores/source3hat_{}.wav".format(i),
-                        predictions[0, 2, :, :],
-                        16000 #self.hparams.sample_rate,
+                        filepath="audiores/source3hat_{}.wav".format(i),
+                        src=predictions[0, 2, :, :],
+                        sample_rate=16000 #self.hparams.sample_rate,
                     )
                     torchaudio.save(
-                        "audiores/source4hat_{}.wav".format(i),
-                        predictions[0, 3, :, :],
-                        16000 #self.hparams.sample_rate,
+                        filepath="audiores/source4hat_{}.wav".format(i),
+                        src=predictions[0, 3, :, :],
+                        sample_rate=16000 #self.hparams.sample_rate,
                     )
 
                     torchaudio.save(
-                        "audiores/source1_{}.wav".format(i),
-                        targets[0, 0, :lim, :].t(),
-                        16000 #self.hparams.sample_rate,
+                        filepath="audiores/source1_{}.wav".format(i),
+                        src=targets[0, 0, :lim, :].t(),
+                        sample_rate=16000 #self.hparams.sample_rate,
                     )
                     torchaudio.save(
-                        "audiores/source2_{}.wav".format(i),
-                        targets[0, 1, :lim, :].t(),
-                        16000 #self.hparams.sample_rate,
+                        filepath="audiores/source2_{}.wav".format(i),
+                        src=targets[0, 1, :lim, :].t(),
+                        sample_rate=16000 #self.hparams.sample_rate,
                     )
                     torchaudio.save(
-                        "audiores/source3_{}.wav".format(i),
-                        targets[0, 2, :lim, :].t(),
-                        16000 #self.hparams.sample_rate,
+                        filepath="audiores/source3_{}.wav".format(i),
+                        src=targets[0, 2, :lim, :].t(),
+                        sample_rate=16000 #self.hparams.sample_rate,
                     )
                     torchaudio.save(
-                        "audiores/source4_{}.wav".format(i),
-                        targets[0, 3, :lim, :].t(),
-                        16000 #self.hparams.sample_rate,
+                        filepath="audiores/source4_{}.wav".format(i),
+                        src=targets[0, 3, :lim, :].t(),
+                        sample_rate=16000 #self.hparams.sample_rate,
                     )
                     self.testindex = self.testindex + 1
 
