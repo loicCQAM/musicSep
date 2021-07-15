@@ -42,7 +42,7 @@ from raw import Rawset
 
 from augment import FlipChannels, FlipSign, Remix, Shift
 
-from utils import center_trim
+from utils_cem import center_trim
 from tasnet import ConvTasNet
 from torch.utils.data import Dataset, DataLoader
 
@@ -656,4 +656,4 @@ if __name__ == "__main__":
     separator.test_mus = test_mus
 
     # Save Results
-    separator.save_results(test_set)
+    separator.save_results(test_loader)
