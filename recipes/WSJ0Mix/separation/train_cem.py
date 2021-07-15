@@ -236,6 +236,8 @@ class Separation(sb.Brain):
                 # print(track.name)
                 print(scores)
 
+                print(mixture[0, :, :lim].shape)
+
                 if i < 5:
                     torchaudio.save(
                         filepath="audiores/mix_{}.wav".format(i),
