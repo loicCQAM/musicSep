@@ -648,10 +648,10 @@ if __name__ == "__main__":
         )
 
     # Eval
-    # separator.modules = separator.modules.to('cpu')
-    # separator.testindex = 0
-    # separator.all_scores = []
-    # separator.evaluate(test_loader, min_key="si-snr")
+    separator.modules = separator.modules.to('cpu')
+    separator.testindex = 0
+    separator.all_scores = []
+    separator.evaluate(test_loader, min_key="si-snr")
     # separator.test_mus = test_mus
 
     # Save Results
