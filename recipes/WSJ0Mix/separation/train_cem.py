@@ -238,7 +238,10 @@ class Separation(sb.Brain):
 
                 print(mixture[0, :, :lim].shape)
 
-                results_path = self.hparams.save_folder
+                results_path = self.hparams.save_folder + "/audio_results"
+
+                if not os.path.exists(results_path):
+                    os.makedirs(results_path)
 
                 if i < 5:
                     torchaudio.save(
