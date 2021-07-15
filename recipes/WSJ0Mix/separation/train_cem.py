@@ -49,7 +49,6 @@ from torch.utils.data import Dataset, DataLoader
 import museval
 import musdb
 from utils import is_empty_source
-from mir_eval.separation import bss_eval_sources
 
 
 # Define training procedure
@@ -184,122 +183,120 @@ class Separation(sb.Brain):
             targets = targets.reshape(targets.size(0), -1, targets.size(-1))
 
             loss = self.compute_objectives(predictions, targets).mean()
-        #elif stage == sb.Stage.TEST:
-            # Variable init
-            
-            # mixture = batch[0].to(self.device)
-            # targets = batch[1].to(self.device)
-            # lim = None
-            # from mir_eval.separation import bss_eval_sources
+        elif stage == sb.Stage.TEST:
+            mixture = batch[0].to(self.device)
+            targets = batch[1].to(self.device)
+            lim = None
+            from mir_eval.separation import bss_eval_sources
 
-            # with torch.no_grad():
+            with torch.no_grad():
 
-            #     st = mixture.std()
-            #     mean = mixture.mean()
-            #     inp = mixture[:, :, :lim]  # - mean) / st
+                st = mixture.std()
+                mean = mixture.mean()
+                inp = mixture[:, :, :lim]  # - mean) / st
 
-            #     predictions, _ = self.compute_forward(
-            #         targets=None, inputs=inp, stage=sb.Stage.TEST
-            #     )
+                predictions, _ = self.compute_forward(
+                    targets=None, inputs=inp, stage=sb.Stage.TEST
+                )
 
-            #     # preds_max = predictions.max(-1, keepdim=True)[0]
-            #     # predictions = predictions / preds_max
-            #     # predictions = predictions * st  + mean
+                # preds_max = predictions.max(-1, keepdim=True)[0]
+                # predictions = predictions / preds_max
+                # predictions = predictions * st  + mean
 
-            #     mixture = mixture.to("cpu")
-            #     predictions = predictions.to("cpu")
-            #     targets = targets.to("cpu")
+                mixture = mixture.to("cpu")
+                predictions = predictions.to("cpu")
+                targets = targets.to("cpu")
 
-            #     i = self.testindex
-            #     # track = self.test_mus.tracks[i]
+                i = self.testindex
+                # track = self.test_mus.tracks[i]
 
-            #     # scores = museval.evaluate(targets[:, :, :lim, :].squeeze(0), predictions.squeeze(0).permute(0, 2, 1))
-            #     estimates = {
-            #         "vocals": predictions[0, -1, :, :].t().numpy(),
-            #         "drums": predictions[0, 0, :, :].t().numpy(),
-            #         "bass": predictions[0, 1, :, :].t().numpy(),
-            #         "accompaniment": predictions[0, 2, :, :].t().numpy(),
-            #     }
-            #     # scores = museval.eval_mus_track(track, estimates)
+                # scores = museval.evaluate(targets[:, :, :lim, :].squeeze(0), predictions.squeeze(0).permute(0, 2, 1))
+                estimates = {
+                    "vocals": predictions[0, -1, :, :].t().numpy(),
+                    "drums": predictions[0, 0, :, :].t().numpy(),
+                    "bass": predictions[0, 1, :, :].t().numpy(),
+                    "accompaniment": predictions[0, 2, :, :].t().numpy(),
+                }
+                # scores = museval.eval_mus_track(track, estimates)
 
-            #     has_zeros = False
+                has_zeros = False
 
-            #     y1, y2 = targets[0, :, :lim, 0].numpy(), targets[0, :, :lim, 1].numpy()
-            #     y_hat1, y_hat2 = predictions[0, :, 0, :].numpy(), predictions[0, :, 1, :].numpy()
+                y1, y2 = targets[0, :, :lim, 0].numpy(), targets[0, :, :lim, 1].numpy()
+                y_hat1, y_hat2 = predictions[0, :, 0, :].numpy(), predictions[0, :, 1, :].numpy()
 
-            #     if is_empty_source(y1) or is_empty_source(y2) or is_empty_source(y_hat1) or is_empty_source(y_hat2):
-            #         has_zeros = True
+                if is_empty_source(y1) or is_empty_source(y2) or is_empty_source(y_hat1) or is_empty_source(y_hat2):
+                    has_zeros = True
 
-            #     if not has_zeros:
-            #         scores1, _, _, _ = bss_eval_sources(
-            #             y1,
-            #             y_hat1
-            #         )
-            #         scores2, _, _, _ = bss_eval_sources(
-            #             y2,
-            #             y_hat2
-            #         )
-            #         scores = np.stack([scores1, scores2])
+                if not has_zeros:
+                    scores1, _, _, _ = bss_eval_sources(
+                        y1,
+                        y_hat1
+                    )
+                    scores2, _, _, _ = bss_eval_sources(
+                        y2,
+                        y_hat2
+                    )
+                    scores = np.stack([scores1, scores2])
 
-            #         # scores = museval.evaluate(targets[0, :, :lim, :], predictions[0].permute(0, 2, 1))
+                    # scores = museval.evaluate(targets[0, :, :lim, :], predictions[0].permute(0, 2, 1))
 
-            #         self.all_scores.append(scores)
+                    self.all_scores.append(scores)
 
-            #         results_path = self.hparams.save_folder + "/audio_results"
+                    results_path = self.hparams.save_folder + "/audio_results"
 
-            #         if not os.path.exists(results_path):
-            #             os.makedirs(results_path)
+                    if not os.path.exists(results_path):
+                        os.makedirs(results_path)
 
-            #         if i < 5:
-            #             torchaudio.save(
-            #                 filepath=results_path + "/mix_{}.wav".format(i),
-            #                 src=mixture[0, :, :lim],
-            #                 sample_rate=self.hparams.sample_rate,
-            #             )
-            #             torchaudio.save(
-            #                 filepath=results_path + "/source1hat_{}.wav".format(i),
-            #                 src=predictions[0, 0, :, :],
-            #                 sample_rate=self.hparams.sample_rate,
-            #             )
-            #             torchaudio.save(
-            #                 filepath=results_path + "/source2hat_{}.wav".format(i),
-            #                 src=predictions[0, 1, :, :],
-            #                 sample_rate=self.hparams.sample_rate,
-            #             )
-            #             torchaudio.save(
-            #                 filepath=results_path + "/source3hat_{}.wav".format(i),
-            #                 src=predictions[0, 2, :, :],
-            #                 sample_rate=self.hparams.sample_rate,
-            #             )
-            #             torchaudio.save(
-            #                 filepath=results_path + "/source4hat_{}.wav".format(i),
-            #                 src=predictions[0, 3, :, :],
-            #                 sample_rate=self.hparams.sample_rate,
-            #             )
+                    if i < 5:
+                        torchaudio.save(
+                            filepath=results_path + "/mix_{}.wav".format(i),
+                            src=mixture[0, :, :lim],
+                            sample_rate=self.hparams.sample_rate,
+                        )
+                        torchaudio.save(
+                            filepath=results_path + "/source1hat_{}.wav".format(i),
+                            src=predictions[0, 0, :, :],
+                            sample_rate=self.hparams.sample_rate,
+                        )
+                        torchaudio.save(
+                            filepath=results_path + "/source2hat_{}.wav".format(i),
+                            src=predictions[0, 1, :, :],
+                            sample_rate=self.hparams.sample_rate,
+                        )
+                        torchaudio.save(
+                            filepath=results_path + "/source3hat_{}.wav".format(i),
+                            src=predictions[0, 2, :, :],
+                            sample_rate=self.hparams.sample_rate,
+                        )
+                        torchaudio.save(
+                            filepath=results_path + "/source4hat_{}.wav".format(i),
+                            src=predictions[0, 3, :, :],
+                            sample_rate=self.hparams.sample_rate,
+                        )
 
-            #             torchaudio.save(
-            #                 filepath=results_path + "/source1_{}.wav".format(i),
-            #                 src=targets[0, 0, :lim, :].t(),
-            #                 sample_rate=self.hparams.sample_rate,
-            #             )
-            #             torchaudio.save(
-            #                 filepath=results_path + "/source2_{}.wav".format(i),
-            #                 src=targets[0, 1, :lim, :].t(),
-            #                 sample_rate=self.hparams.sample_rate,
-            #             )
-            #             torchaudio.save(
-            #                 filepath=results_path + "/source3_{}.wav".format(i),
-            #                 src=targets[0, 2, :lim, :].t(),
-            #                 sample_rate=self.hparams.sample_rate,
-            #             )
-            #             torchaudio.save(
-            #                 filepath=results_path + "/source4_{}.wav".format(i),
-            #                 src=targets[0, 3, :lim, :].t(),
-            #                 sample_rate=self.hparams.sample_rate,
-            #             )
-            #             self.testindex = self.testindex + 1
+                        torchaudio.save(
+                            filepath=results_path + "/source1_{}.wav".format(i),
+                            src=targets[0, 0, :lim, :].t(),
+                            sample_rate=self.hparams.sample_rate,
+                        )
+                        torchaudio.save(
+                            filepath=results_path + "/source2_{}.wav".format(i),
+                            src=targets[0, 1, :lim, :].t(),
+                            sample_rate=self.hparams.sample_rate,
+                        )
+                        torchaudio.save(
+                            filepath=results_path + "/source3_{}.wav".format(i),
+                            src=targets[0, 2, :lim, :].t(),
+                            sample_rate=self.hparams.sample_rate,
+                        )
+                        torchaudio.save(
+                            filepath=results_path + "/source4_{}.wav".format(i),
+                            src=targets[0, 3, :lim, :].t(),
+                            sample_rate=self.hparams.sample_rate,
+                        )
+                        self.testindex = self.testindex + 1
 
-            #     loss = torch.tensor([0])
+                loss = torch.tensor([0])
 
         return loss.detach()
 
@@ -428,164 +425,6 @@ class Separation(sb.Brain):
             if layer != child_layer:
                 self.reset_layer_recursively(child_layer)
 
-    def save_results_2(self, test_loader):
-        # Create folders where to store audio
-        save_file = os.path.join(self.hparams.output_folder, "test_results.csv")
-
-        # Variable init
-        all_sdrs = []
-        all_losses = []
-        csv_columns = ["snt_id", "sdr", "loss"]
-
-        with open(save_file, "w") as results_csv:
-            writer = csv.DictWriter(results_csv, fieldnames=csv_columns)
-            writer.writeheader()
-
-            # Loop over all test sentence
-            with tqdm(test_loader, dynamic_ncols=True) as t:
-                for index, batch in enumerate(t):
-                    mixture = batch[0].to(self.device)
-                    targets = batch[1].to(self.device)
-                    lim = None
-
-                    with torch.no_grad():
-                        inp = mixture[:, :, :lim]  # - mean) / st
-
-                        predictions, _ = self.compute_forward(
-                            targets=None, inputs=inp, stage=sb.Stage.TEST
-                        )
-                        snt_id = batch[0][0]
-                        mixture = mixture.to("cpu")
-                        predictions = predictions.to("cpu")
-                        targets = targets.to("cpu")
-
-                        # METRICS *******************************************
-                        loss = self.compute_objectives(predictions, targets)
-
-                        # Compute SI-SNR improvement
-                        mixture_signal = torch.stack(
-                            [batch[0][1]] * 4, dim=-1
-                        )
-                        mixture_signal = mixture_signal.to(targets.device)
-
-                        # Compute SDR
-                        sdr, _, _, _ = bss_eval_sources(
-                            targets[0].t().cpu().numpy(),
-                            predictions[0].t().detach().cpu().numpy(),
-                        )
-
-                        # Saving on a csv file
-                        row = {
-                            "snt_id": snt_id[0],
-                            "sdr": sdr.mean(),
-                            "si-snr": loss.item(),
-                        }
-                        writer.writerow(row)
-
-                        # Metric Accumulation
-                        all_sdrs.append(sdr.mean())
-                        all_losses.append(loss.item())
-
-                        # END METRICS *******************************************
-
-                        i = self.testindex
-
-                        # scores = museval.evaluate(targets[:, :, :lim, :].squeeze(0), predictions.squeeze(0).permute(0, 2, 1))
-                        # estimates = {
-                        #     "vocals": predictions[0, -1, :, :].t().numpy(),
-                        #     "drums": predictions[0, 0, :, :].t().numpy(),
-                        #     "bass": predictions[0, 1, :, :].t().numpy(),
-                        #     "accompaniment": predictions[0, 2, :, :].t().numpy(),
-                        # }
-                        # scores = museval.eval_mus_track(track, estimates)
-
-                        has_zeros = False
-
-                        y1, y2 = targets[0, :, :lim, 0].numpy(), targets[0, :, :lim, 1].numpy()
-                        y_hat1, y_hat2 = predictions[0, :, 0, :].numpy(), predictions[0, :, 1, :].numpy()
-
-                        if is_empty_source(y1) or is_empty_source(y2) or is_empty_source(y_hat1) or is_empty_source(y_hat2):
-                            has_zeros = True
-
-                        if not has_zeros:
-                            scores1, _, _, _ = bss_eval_sources(
-                                y1,
-                                y_hat1
-                            )
-                            scores2, _, _, _ = bss_eval_sources(
-                                y2,
-                                y_hat2
-                            )
-                            scores = np.stack([scores1, scores2])
-
-                            # scores = museval.evaluate(targets[0, :, :lim, :], predictions[0].permute(0, 2, 1))
-
-                            self.all_scores.append(scores)
-
-                            results_path = self.hparams.save_folder + "/audio_results"
-
-                            if not os.path.exists(results_path):
-                                os.makedirs(results_path)
-
-                            if i < 5:
-                                torchaudio.save(
-                                    filepath=results_path + "/mix_{}.wav".format(i),
-                                    src=mixture[0, :, :lim],
-                                    sample_rate=self.hparams.sample_rate,
-                                )
-                                torchaudio.save(
-                                    filepath=results_path + "/source1hat_{}.wav".format(i),
-                                    src=predictions[0, 0, :, :],
-                                    sample_rate=self.hparams.sample_rate,
-                                )
-                                torchaudio.save(
-                                    filepath=results_path + "/source2hat_{}.wav".format(i),
-                                    src=predictions[0, 1, :, :],
-                                    sample_rate=self.hparams.sample_rate,
-                                )
-                                torchaudio.save(
-                                    filepath=results_path + "/source3hat_{}.wav".format(i),
-                                    src=predictions[0, 2, :, :],
-                                    sample_rate=self.hparams.sample_rate,
-                                )
-                                torchaudio.save(
-                                    filepath=results_path + "/source4hat_{}.wav".format(i),
-                                    src=predictions[0, 3, :, :],
-                                    sample_rate=self.hparams.sample_rate,
-                                )
-
-                                torchaudio.save(
-                                    filepath=results_path + "/source1_{}.wav".format(i),
-                                    src=targets[0, 0, :lim, :].t(),
-                                    sample_rate=self.hparams.sample_rate,
-                                )
-                                torchaudio.save(
-                                    filepath=results_path + "/source2_{}.wav".format(i),
-                                    src=targets[0, 1, :lim, :].t(),
-                                    sample_rate=self.hparams.sample_rate,
-                                )
-                                torchaudio.save(
-                                    filepath=results_path + "/source3_{}.wav".format(i),
-                                    src=targets[0, 2, :lim, :].t(),
-                                    sample_rate=self.hparams.sample_rate,
-                                )
-                                torchaudio.save(
-                                    filepath=results_path + "/source4_{}.wav".format(i),
-                                    src=targets[0, 3, :lim, :].t(),
-                                    sample_rate=self.hparams.sample_rate,
-                                )
-                                self.testindex = self.testindex + 1
-
-                row = {
-                    "snt_id": "avg",
-                    "sdr": np.array(all_sdrs).mean(),
-                    "si-snr": np.array(all_losses).mean()
-                }
-                writer.writerow(row)
-
-        print("Mean loss is {}".format(np.array(all_losses).mean()))
-        print("Mean SDR is {}".format(np.array(all_sdrs).mean()))
-
     def save_results(self, test_loader):
         """This script computes the SDR and SI-SNR metrics and saves
         them into a csv file"""
@@ -610,16 +449,6 @@ class Separation(sb.Brain):
             # Loop over all test sentence
             with tqdm(test_loader, dynamic_ncols=True) as t:
                 for i, batch in enumerate(t):
-
-                    mixture = batch[0].to(self.device)
-                    targets = batch[1].to(self.device)
-
-                    print("-------------")
-                    print("-------------")
-                    print(mixture.shape)
-                    print(targets.shape)
-                    print("-------------")
-                    print("-------------")
 
                     # Apply Separation
                     mixture = batch[0]
@@ -822,8 +651,8 @@ if __name__ == "__main__":
     # separator.modules = separator.modules.to('cpu')
     separator.testindex = 0
     separator.all_scores = []
-    # separator.evaluate(test_loader, min_key="si-snr")
+    separator.evaluate(test_loader, min_key="si-snr")
     separator.test_mus = test_mus
 
     # Save Results
-    separator.save_results_2(test_loader)
+    separator.save_results(test_loader)
