@@ -228,6 +228,8 @@ class Separation(sb.Brain):
                 if is_empty_source(y1) or is_empty_source(y2) or is_empty_source(y_hat1) or is_empty_source(y_hat2):
                     has_zeros = True
 
+                print(has_zeros)
+
                 if not has_zeros:
 
                     scores1, _, _, _ = bss_eval_sources(
