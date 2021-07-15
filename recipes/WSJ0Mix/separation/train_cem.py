@@ -183,7 +183,6 @@ class Separation(sb.Brain):
 
             loss = self.compute_objectives(predictions, targets).mean()
         elif stage == sb.Stage.TEST:
-            print("EVALUATING...")
             mixture = batch[0].to(self.device)
             targets = batch[1].to(self.device)
             lim = None
@@ -232,11 +231,6 @@ class Separation(sb.Brain):
                 # scores = museval.evaluate(targets[0, :, :lim, :], predictions[0].permute(0, 2, 1))
 
                 self.all_scores.append(scores)
-                print(i)
-                # print(track.name)
-                print(scores)
-
-                print(mixture[0, :, :lim].shape)
 
                 results_path = self.hparams.save_folder + "/audio_results"
 
@@ -557,7 +551,6 @@ class musdb_test_dataset(Dataset):
         return len(self.mus)
 
     def __getitem__(self, idx):
-        print("Retrieving song for testing")
         track = self.mus.tracks[idx]
         track.chunk_duration = 5.0
         track.chunk_start = np.random.uniform(0, track.duration - track.chunk_duration)
@@ -596,8 +589,6 @@ if __name__ == "__main__":
     test_loader = DataLoader(
         test_set, batch_size=hparams["N_batch"], shuffle=False
     )
-
-    print(len(test_set))
 
     train_set = Rawset(
         os.path.join(hparams["musdb_raw_path"], "train"),
