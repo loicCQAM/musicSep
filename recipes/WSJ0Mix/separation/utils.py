@@ -46,11 +46,8 @@ def is_empty_source(source):
     empty = False
     dims = source.shape[0]
     for d in range(dims):
-        print(type(source[d]))
-        print(source[d])
-        print(source[d].shape)
-        # if np.sum(source[d]) == 0:
-        #     empty = True
+        if np.sum(source[d]) == 0:
+            empty = True
     return empty
 
 
