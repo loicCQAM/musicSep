@@ -348,57 +348,57 @@ class Separation(sb.Brain):
                         predictions, targets = self.compute_forward(
                             batch.mix_sig, targets, sb.Stage.TEST
                         )
+                        # HERE !!!!
+                        # Compute SI-SNR
+                        loss = self.compute_objectives(predictions, targets)
 
-                    # Compute SI-SNR
-                    loss = self.compute_objectives(predictions, targets)
-
-                    # Compute SI-SNR improvement
-                    # mixture_signal = torch.stack(
-                    #     [mixture] * self.hparams.num_spks, dim=-1
-                    # )
-                    # mixture_signal = mixture_signal.to(targets.device)
-                    # sisnr_baseline = self.compute_objectives(
-                    #     mixture_signal, targets
-                    # )
-                    # sisnr_i = sisnr - sisnr_baseline
-
-                    eval_targets = targets[0].t().cpu().numpy()
-                    eval_predictions = predictions[0].t().detach().cpu().numpy()
-
-                    has_zeros = False
-
-                    if is_empty_source(eval_targets) or is_empty_source(eval_predictions):
-                        has_zeros = True
-
-                    if not has_zeros:
-                        # Compute SDR
-                        sdr, _, _, _ = bss_eval_sources(
-                            eval_targets,
-                            eval_predictions
-                        )
-
-                        # sdr_baseline, _, _, _ = bss_eval_sources(
-                        #     targets[0].t().cpu().numpy(),
-                        #     mixture_signal[0].t().detach().cpu().numpy(),
+                        # Compute SI-SNR improvement
+                        # mixture_signal = torch.stack(
+                        #     [mixture] * self.hparams.num_spks, dim=-1
                         # )
+                        # mixture_signal = mixture_signal.to(targets.device)
+                        # sisnr_baseline = self.compute_objectives(
+                        #     mixture_signal, targets
+                        # )
+                        # sisnr_i = sisnr - sisnr_baseline
 
-                        # sdr_i = sdr.mean() - sdr_baseline.mean()
+                        eval_targets = targets[0].t().cpu().numpy()
+                        eval_predictions = predictions[0].t().detach().cpu().numpy()
 
-                        # Saving on a csv file
-                        row = {
-                            "snt_id": snt_id[0],
-                            "sdr": sdr.mean(),
-                            # "sdr_i": sdr_i,
-                            "loss": loss.item(),
-                            # "si-snr_i": -sisnr_i.item(),
-                        }
-                        writer.writerow(row)
+                        has_zeros = False
 
-                        # Metric Accumulation
-                        all_sdrs.append(sdr.mean())
-                        # all_sdrs_i.append(sdr_i.mean())
-                        all_losses.append(loss.item())
-                        # all_sisnrs_i.append(-sisnr_i.item())
+                        if is_empty_source(eval_targets) or is_empty_source(eval_predictions):
+                            has_zeros = True
+
+                        if not has_zeros:
+                            # Compute SDR
+                            sdr, _, _, _ = bss_eval_sources(
+                                eval_targets,
+                                eval_predictions
+                            )
+
+                            # sdr_baseline, _, _, _ = bss_eval_sources(
+                            #     targets[0].t().cpu().numpy(),
+                            #     mixture_signal[0].t().detach().cpu().numpy(),
+                            # )
+
+                            # sdr_i = sdr.mean() - sdr_baseline.mean()
+
+                            # Saving on a csv file
+                            row = {
+                                "snt_id": snt_id[0],
+                                "sdr": sdr.mean(),
+                                # "sdr_i": sdr_i,
+                                "loss": loss.item(),
+                                # "si-snr_i": -sisnr_i.item(),
+                            }
+                            writer.writerow(row)
+
+                            # Metric Accumulation
+                            all_sdrs.append(sdr.mean())
+                            # all_sdrs_i.append(sdr_i.mean())
+                            all_losses.append(loss.item())
+                            # all_sisnrs_i.append(-sisnr_i.item())
 
                 row = {
                     "snt_id": "avg",
