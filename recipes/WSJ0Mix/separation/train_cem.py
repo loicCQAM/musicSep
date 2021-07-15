@@ -184,6 +184,7 @@ class Separation(sb.Brain):
 
             loss = self.compute_objectives(predictions, targets).mean()
         elif stage == sb.Stage.TEST:
+            print("EVALUATE !")
             mixture = batch[0].to(self.device)
             targets = batch[1].to(self.device)
             lim = None
@@ -207,6 +208,9 @@ class Separation(sb.Brain):
                 predictions = predictions.to("cpu")
                 targets = targets.to("cpu")
 
+                print(predictions.shape)
+                print(targets.shape)
+
                 i = self.testindex
                 # track = self.test_mus.tracks[i]
 
@@ -226,6 +230,8 @@ class Separation(sb.Brain):
 
                 if is_empty_source(y1) or is_empty_source(y2) or is_empty_source(y_hat1) or is_empty_source(y_hat2):
                     has_zeros = True
+
+                print(has_zeros)
 
                 if not has_zeros:
                     scores1, _, _, _ = bss_eval_sources(
