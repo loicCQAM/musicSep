@@ -62,8 +62,6 @@ class Separation(sb.Brain):
         :return:
         """
 
-        print(targets.shape)
-
         if stage == sb.Stage.TRAIN:
             # predictions = self.compute_forward(inputs)
             # sources = center_trim(targets, estimates)
