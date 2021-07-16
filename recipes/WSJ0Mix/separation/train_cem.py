@@ -62,6 +62,8 @@ class Separation(sb.Brain):
         :return:
         """
 
+        print(targets.shape)
+
         if stage == sb.Stage.TRAIN:
             # predictions = self.compute_forward(inputs)
             # sources = center_trim(targets, estimates)
@@ -256,48 +258,48 @@ class Separation(sb.Brain):
                         torchaudio.save(
                             filepath=results_path + "/mix_{}.wav".format(i),
                             src=mixture[0, :, :lim],
-                            sample_rate=16000 #self.hparams.sample_rate,
+                            sample_rate=self.hparams.sample_rate,
                         )
                         torchaudio.save(
                             filepath=results_path + "/source1hat_{}.wav".format(i),
                             src=predictions[0, 0, :, :],
-                            sample_rate=16000 #self.hparams.sample_rate,
+                            sample_rate=self.hparams.sample_rate,
                         )
                         torchaudio.save(
                             filepath=results_path + "/source2hat_{}.wav".format(i),
                             src=predictions[0, 1, :, :],
-                            sample_rate=16000 #self.hparams.sample_rate,
+                            sample_rate=self.hparams.sample_rate,
                         )
                         torchaudio.save(
                             filepath=results_path + "/source3hat_{}.wav".format(i),
                             src=predictions[0, 2, :, :],
-                            sample_rate=16000 #self.hparams.sample_rate,
+                            sample_rate=self.hparams.sample_rate,
                         )
                         torchaudio.save(
                             filepath=results_path + "/source4hat_{}.wav".format(i),
                             src=predictions[0, 3, :, :],
-                            sample_rate=16000 #self.hparams.sample_rate,
+                            sample_rate=self.hparams.sample_rate,
                         )
 
                         torchaudio.save(
                             filepath=results_path + "/source1_{}.wav".format(i),
                             src=targets[0, 0, :lim, :].t(),
-                            sample_rate=16000 #self.hparams.sample_rate,
+                            sample_rate=self.hparams.sample_rate,
                         )
                         torchaudio.save(
                             filepath=results_path + "/source2_{}.wav".format(i),
                             src=targets[0, 1, :lim, :].t(),
-                            sample_rate=16000 #self.hparams.sample_rate,
+                            sample_rate=self.hparams.sample_rate,
                         )
                         torchaudio.save(
                             filepath=results_path + "/source3_{}.wav".format(i),
                             src=targets[0, 2, :lim, :].t(),
-                            sample_rate=16000 #self.hparams.sample_rate,
+                            sample_rate=self.hparams.sample_rate,
                         )
                         torchaudio.save(
                             filepath=results_path + "/source4_{}.wav".format(i),
                             src=targets[0, 3, :lim, :].t(),
-                            sample_rate=16000 #self.hparams.sample_rate,
+                            sample_rate=self.hparams.sample_rate,
                         )
                         self.testindex = self.testindex + 1
 
@@ -653,7 +655,7 @@ if __name__ == "__main__":
         )
 
     # Eval
-    # separator.modules = separator.modules.to('cpu')
+    separator.modules = separator.modules.to('cpu')
     separator.testindex = 0
     separator.all_scores = []
     separator.evaluate(test_loader, min_key="si-snr")
