@@ -207,7 +207,7 @@ class Separation(sb.Brain):
                 # predictions = predictions / preds_max
                 # predictions = predictions * st  + mean
 
-                mixture = mixture.to("cpu").to(self.device)
+                mixture = mixture.to("cpu")
                 predictions = predictions.to("cpu")
                 targets = targets.to("cpu")
 
@@ -215,12 +215,12 @@ class Separation(sb.Brain):
                 # track = self.test_mus.tracks[i]
 
                 # scores = museval.evaluate(targets[:, :, :lim, :].squeeze(0), predictions.squeeze(0).permute(0, 2, 1))
-                estimates = {
+                '''estimates = {
                     "vocals": predictions[0, -1, :, :].t().numpy(),
                     "drums": predictions[0, 0, :, :].t().numpy(),
                     "bass": predictions[0, 1, :, :].t().numpy(),
                     "accompaniment": predictions[0, 2, :, :].t().numpy(),
-                }
+                }'''
                 # scores = museval.eval_mus_track(track, estimates)
 
                 has_zeros = False
