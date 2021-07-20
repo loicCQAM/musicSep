@@ -231,8 +231,6 @@ class Separation(sb.Brain):
                 if is_empty_source(y1) or is_empty_source(y2) or is_empty_source(y_hat1) or is_empty_source(y_hat2):
                     has_zeros = True
 
-                print(has_zeros)
-
                 if not has_zeros:
 
                     scores1, _, _, _ = bss_eval_sources(
@@ -258,48 +256,48 @@ class Separation(sb.Brain):
                         torchaudio.save(
                             filepath=results_path + "/mix_{}.wav".format(i),
                             src=mixture[0, :, :lim],
-                            sample_rate=self.hparams.sample_rate,
+                            sample_rate=44100
                         )
                         torchaudio.save(
                             filepath=results_path + "/source1hat_{}.wav".format(i),
                             src=predictions[0, 0, :, :],
-                            sample_rate=self.hparams.sample_rate,
+                            sample_rate=44100
                         )
                         torchaudio.save(
                             filepath=results_path + "/source2hat_{}.wav".format(i),
                             src=predictions[0, 1, :, :],
-                            sample_rate=self.hparams.sample_rate,
+                            sample_rate=44100
                         )
                         torchaudio.save(
                             filepath=results_path + "/source3hat_{}.wav".format(i),
                             src=predictions[0, 2, :, :],
-                            sample_rate=self.hparams.sample_rate,
+                            sample_rate=44100
                         )
                         torchaudio.save(
                             filepath=results_path + "/source4hat_{}.wav".format(i),
                             src=predictions[0, 3, :, :],
-                            sample_rate=self.hparams.sample_rate,
+                            sample_rate=44100
                         )
 
                         torchaudio.save(
                             filepath=results_path + "/source1_{}.wav".format(i),
                             src=targets[0, 0, :lim, :].t(),
-                            sample_rate=self.hparams.sample_rate,
+                            sample_rate=44100
                         )
                         torchaudio.save(
                             filepath=results_path + "/source2_{}.wav".format(i),
                             src=targets[0, 1, :lim, :].t(),
-                            sample_rate=self.hparams.sample_rate,
+                            sample_rate=44100
                         )
                         torchaudio.save(
                             filepath=results_path + "/source3_{}.wav".format(i),
                             src=targets[0, 2, :lim, :].t(),
-                            sample_rate=self.hparams.sample_rate,
+                            sample_rate=44100
                         )
                         torchaudio.save(
                             filepath=results_path + "/source4_{}.wav".format(i),
                             src=targets[0, 3, :lim, :].t(),
-                            sample_rate=self.hparams.sample_rate,
+                            sample_rate=44100
                         )
                         self.testindex = self.testindex + 1
 
