@@ -205,9 +205,9 @@ class Separation(sb.Brain):
                 # predictions = predictions / preds_max
                 # predictions = predictions * st  + mean
 
-                mixture = mixture.to("cpu")
-                predictions = predictions.to("cpu")
-                targets = targets.to("cpu")
+                mixture = mixture.to(self.device)
+                predictions = predictions.to(self.device)
+                targets = targets.to(self.device)
 
                 i = self.testindex
                 # track = self.test_mus.tracks[i]
