@@ -197,7 +197,7 @@ class Separation(sb.Brain):
                 mean = mixture.mean()
                 inp = mixture[:, :, :lim]  # - mean) / st
 
-                inp = inp.to(self.device)
+                inp = inp.to("cpu")
 
                 predictions, _ = self.compute_forward(
                     targets=None, inputs=inp, stage=sb.Stage.TEST
