@@ -70,7 +70,7 @@ class Separation(sb.Brain):
 
         est_source = self.hparams.convtasnet(inputs)
         print(est_source.shape)
-        est_source2 = est_source / est_source.abs().max(dim=-1, keepdim=True)
+        est_source2 = est_source / est_source.abs().max(dim=-1, keepdim=True)[0]
         print(est_source2.shape)
 
         # T changed after conv1d in encoder, fix it here
