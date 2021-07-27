@@ -600,11 +600,11 @@ if __name__ == "__main__":
     # valid_set = hparams["valid_loader"]()
     # test_set = hparams["test_loader"]()
 
-    test_mus = musdb.DB(hparams["musdb_path"], subsets=["test"])
+    '''test_mus = musdb.DB(hparams["musdb_path"], subsets=["test"])
     test_set = musdb_test_dataset(test_mus)
     test_loader = DataLoader(
         test_set, batch_size=hparams["N_batch"], shuffle=False
-    )
+    )'''
 
     train_set = Rawset(
         os.path.join(hparams["musdb_raw_path"], "train"),
