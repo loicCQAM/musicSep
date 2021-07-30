@@ -54,9 +54,8 @@ def is_empty_source(source):
 def check_non_zeros(source):
     dims = source.shape[0]
     for d in range(dims):
-        print(source[d])
         if np.sum(source[d]) == 0:
-            source[d][0] = 0.1
+            source[d][0] = 0.001
     return source
 
 
