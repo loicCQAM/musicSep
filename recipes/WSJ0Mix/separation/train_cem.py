@@ -145,13 +145,10 @@ class Separation(sb.Brain):
                 if loss_to_keep.nelement() > 0:
                     loss = loss_to_keep.mean()
             else:
-                if loss is None:
-                    loss = torch.tensor([0.0])
-                loss = loss.mean()
+                if loss is not None:
+                    loss = loss.mean()
 
-            if (
-                loss < self.hparams.loss_upper_lim and loss.nelement() > 0
-            ):  # the fix for computational problems
+            if (loss < self.hparams.loss_upper_lim and loss.nelement() > 0 and loss is not None):
                 loss.backward()
                 if self.hparams.clip_grad_norm >= 0:
                     torch.nn.utils.clip_grad_norm_(
