@@ -230,10 +230,10 @@ class Separation(sb.Brain):
                     "accompaniment": targets[0, 3, :lim, :].t().numpy(),
                 }
 
-                if  not is_empty_source(true_values["vocals"]) and not is_empty_source(true_values["vocals"]) and \
-                    not is_empty_source(true_values["drums"]) and not is_empty_source(true_values["drums"]) and \
-                    not is_empty_source(true_values["bass"]) and not is_empty_source(true_values["bass"]) and \
-                    not is_empty_source(true_values["accompaniment"]) and not is_empty_source(true_values["accompaniment"]):
+                if  not is_empty_source(true_values["vocals"]) and not is_empty_source(estimates["vocals"]) and \
+                    not is_empty_source(true_values["drums"]) and not is_empty_source(estimates["drums"]) and \
+                    not is_empty_source(true_values["bass"]) and not is_empty_source(estimates["bass"]) and \
+                    not is_empty_source(true_values["accompaniment"]) and not is_empty_source(estimates["accompaniment"]):
 
                     vocals_sdr, _, _, _ = bss_eval_sources(true_values["vocals"], estimates["vocals"])
                     drums_sdr, _, _, _ = bss_eval_sources(true_values["drums"], estimates["drums"])
