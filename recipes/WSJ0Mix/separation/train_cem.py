@@ -216,9 +216,7 @@ class Separation(sb.Brain):
                 # predictions = predictions * st  + mean
 
                 i = self.testindex
-                # track = self.test_mus.tracks[i]
 
-                # scores = museval.evaluate(targets[:, :, :lim, :].squeeze(0), predictions.squeeze(0).permute(0, 2, 1))
                 estimates = {
                     "vocals": predictions[0, 0, :, :].numpy(),
                     "drums": predictions[0, 1, :, :].numpy(),
@@ -231,52 +229,33 @@ class Separation(sb.Brain):
                     "bass": targets[0, 2, :lim, :].t().numpy(),
                     "accompaniment": targets[0, 3, :lim, :].t().numpy(),
                 }
-                vocals_sdr, _, _, _ = bss_eval_sources(true_values["vocals"], estimates["vocals"])
-                drums_sdr, _, _, _ = bss_eval_sources(true_values["drums"], estimates["drums"])
-                bass_sdr, _, _, _ = bss_eval_sources(true_values["bass"], estimates["bass"])
-                accompaniment_sdr, _, _, _ = bss_eval_sources(true_values["accompaniment"], estimates["accompaniment"])
 
-                vocals_sdr = vocals_sdr.mean()
-                drums_sdr = drums_sdr.mean()
-                bass_sdr = bass_sdr.mean()
-                accompaniment_sdr = accompaniment_sdr.mean()
+                if  not is_empty_source(true_values["vocals"]) and not is_empty_source(true_values["vocals"]) and \
+                    not is_empty_source(true_values["drums"]) and not is_empty_source(true_values["drums"]) and \
+                    not is_empty_source(true_values["bass"]) and not is_empty_source(true_values["bass"]) and \
+                    not is_empty_source(true_values["accompaniment"]) and not is_empty_source(true_values["accompaniment"]):
 
-                row = {
-                    "ID": i,
-                    "Vocals SDR": vocals_sdr,
-                    "Drums SDR": drums_sdr,
-                    "Bass SDR": bass_sdr,
-                    "Accompaniment SDR": accompaniment_sdr,
-                    "Mean SDR": np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean(),
-                    #"loss": loss.item()
-                }
+                    vocals_sdr, _, _, _ = bss_eval_sources(true_values["vocals"], estimates["vocals"])
+                    drums_sdr, _, _, _ = bss_eval_sources(true_values["drums"], estimates["drums"])
+                    bass_sdr, _, _, _ = bss_eval_sources(true_values["bass"], estimates["bass"])
+                    accompaniment_sdr, _, _, _ = bss_eval_sources(true_values["accompaniment"], estimates["accompaniment"])
 
-                print("\n")
-                print(row)
+                    vocals_sdr = vocals_sdr.mean()
+                    drums_sdr = drums_sdr.mean()
+                    bass_sdr = bass_sdr.mean()
+                    accompaniment_sdr = accompaniment_sdr.mean()
 
-                has_zeros = False
+                    row = {
+                        "ID": i,
+                        "Vocals SDR": vocals_sdr,
+                        "Drums SDR": drums_sdr,
+                        "Bass SDR": bass_sdr,
+                        "Accompaniment SDR": accompaniment_sdr,
+                        "Mean SDR": np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
+                    }
 
-                '''y1, y2 = targets[0, :, :lim, 0].numpy(), targets[0, :, :lim, 1].numpy()
-                y_hat1, y_hat2 = predictions[0, :, 0, :].numpy(), predictions[0, :, 1, :].numpy()
-
-                if is_empty_source(y1) or is_empty_source(y2) or is_empty_source(y_hat1) or is_empty_source(y_hat2):
-                    has_zeros = True'''
-
-                if not has_zeros:
-
-                    '''scores1, _, _, _ = bss_eval_sources(
-                        y1,
-                        y_hat1
-                    )
-                    scores2, _, _, _ = bss_eval_sources(
-                        y2,
-                        y_hat2
-                    )
-                    scores = np.stack([scores1, scores2])
-
-                    # scores = museval.evaluate(targets[0, :, :lim, :], predictions[0].permute(0, 2, 1))
-
-                    self.all_scores.append(scores)'''
+                    print("\n")
+                    print(row)
 
                     results_path = self.hparams.save_folder + "/audio_results"
 
@@ -693,4 +672,4 @@ if __name__ == "__main__":
     separator.test_mus = test_mus
 
     # Save Results
-    ## separator.save_results(test_loader)
+    #separator.save_results(test_loader)
