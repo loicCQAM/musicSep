@@ -202,7 +202,7 @@ class Separation(sb.Brain):
                     targets=None, inputs=inp, stage=sb.Stage.TEST
                 )
 
-                loss = self.compute_objectives(predictions, targets)
+                #loss = self.compute_objectives(predictions, targets)
 
                 predictions = predictions.to("cpu")
                 mixture = mixture.to("cpu")
@@ -250,10 +250,8 @@ class Separation(sb.Brain):
                     "Bass SDR": bass_sdr,
                     "Accompaniment SDR": accompaniment_sdr,
                     "Mean SDR": np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean(),
-                    "loss": loss.item()
+                    #"loss": loss.item()
                 }
-
-                print(row)
 
                 has_zeros = False
 
@@ -332,6 +330,8 @@ class Separation(sb.Brain):
                             sample_rate=44100
                         )
                         self.testindex = self.testindex + 1
+
+                loss = torch.tensor([0])
 
         return loss.detach()
 
