@@ -237,9 +237,9 @@ class Separation(sb.Brain):
                 accompaniment_sdr, _, _, _ = bss_eval_sources(true_values["accompaniment"], estimates["accompaniment"])
 
                 vocals_sdr = vocals_sdr.mean()
-                drums_sdr = vocals_sdr.mean()
-                bass_sdr = vocals_sdr.mean()
-                accompaniment_sdr = vocals_sdr.mean()
+                drums_sdr = drums_sdr.mean()
+                bass_sdr = bass_sdr.mean()
+                accompaniment_sdr = accompaniment_sdr.mean()
 
                 row = {
                     "ID": i,
@@ -251,6 +251,7 @@ class Separation(sb.Brain):
                     #"loss": loss.item()
                 }
 
+                print("\n")
                 print(row)
 
                 has_zeros = False
