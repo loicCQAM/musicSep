@@ -260,43 +260,43 @@ class Separation(sb.Brain):
                             sample_rate=44100
                         )
                         torchaudio.save(
-                            filepath=results_path + "/song_{}_source1_hat.wav".format(i),
+                            filepath=results_path + "/song_{}_drums_hat.wav".format(i),
                             src=predictions[0, 0, :, :],
                             sample_rate=44100
                         )
                         torchaudio.save(
-                            filepath=results_path + "/song_{}_source2_hat.wav".format(i),
+                            filepath=results_path + "/song_{}_bass_hat.wav".format(i),
                             src=predictions[0, 1, :, :],
                             sample_rate=44100
                         )
                         torchaudio.save(
-                            filepath=results_path + "/song_{}_source3_hat.wav".format(i),
+                            filepath=results_path + "/song_{}_others_hat.wav".format(i),
                             src=predictions[0, 2, :, :],
                             sample_rate=44100
                         )
                         torchaudio.save(
-                            filepath=results_path + "/song_{}_source4_hat.wav".format(i),
+                            filepath=results_path + "/song_{}_vocals_hat.wav".format(i),
                             src=predictions[0, 3, :, :],
                             sample_rate=44100
                         )
 
                         torchaudio.save(
-                            filepath=results_path + "/song_{}_source1.wav".format(i),
+                            filepath=results_path + "/song_{}_drums.wav".format(i),
                             src=targets[0, 0, :lim, :].t(),
                             sample_rate=44100
                         )
                         torchaudio.save(
-                            filepath=results_path + "/song_{}_source2.wav".format(i),
+                            filepath=results_path + "/song_{}_bass.wav".format(i),
                             src=targets[0, 1, :lim, :].t(),
                             sample_rate=44100
                         )
                         torchaudio.save(
-                            filepath=results_path + "/song_{}_source3.wav".format(i),
+                            filepath=results_path + "/song_{}_others.wav".format(i),
                             src=targets[0, 2, :lim, :].t(),
                             sample_rate=44100
                         )
                         torchaudio.save(
-                            filepath=results_path + "/song_{}_source4.wav".format(i),
+                            filepath=results_path + "/song_{}_vocals.wav".format(i),
                             src=targets[0, 3, :lim, :].t(),
                             sample_rate=44100
                         )
