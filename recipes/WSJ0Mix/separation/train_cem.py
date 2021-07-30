@@ -202,6 +202,9 @@ class Separation(sb.Brain):
                     targets=None, inputs=inp, stage=sb.Stage.TEST
                 )
 
+                print(predictions.get_device())
+                print(ref.get_device())
+
                 predictions = predictions * ref.std() + ref.mean()
 
                 # preds_max = predictions.max(-1, keepdim=True)[0]
