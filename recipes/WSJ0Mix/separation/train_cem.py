@@ -202,6 +202,8 @@ class Separation(sb.Brain):
                     targets=None, inputs=inp, stage=sb.Stage.TEST
                 )
 
+                loss = self.compute_objectives(predictions, targets)
+
                 predictions = predictions.to("cpu")
                 mixture = mixture.to("cpu")
                 targets = targets.to("cpu")
@@ -231,30 +233,39 @@ class Separation(sb.Brain):
                     "bass": targets[0, 2, :lim, :].t().numpy(),
                     "accompaniment": targets[0, 3, :lim, :].t().numpy(),
                 }
-                vocals_score, _, _, _ = bss_eval_sources(true_values["vocals"], estimates["vocals"])
-                drums_score, _, _, _ = bss_eval_sources(true_values["drums"], estimates["drums"])
-                bass_score, _, _, _ = bss_eval_sources(true_values["bass"], estimates["bass"])
-                accompaniment_score, _, _, _ = bss_eval_sources(true_values["accompaniment"], estimates["accompaniment"])
+                vocals_sdr, _, _, _ = bss_eval_sources(true_values["vocals"], estimates["vocals"])
+                drums_sdr, _, _, _ = bss_eval_sources(true_values["drums"], estimates["drums"])
+                bass_sdr, _, _, _ = bss_eval_sources(true_values["bass"], estimates["bass"])
+                accompaniment_sdr, _, _, _ = bss_eval_sources(true_values["accompaniment"], estimates["accompaniment"])
 
-                # scores = museval.eval_mus_track(mixture, estimates)
+                vocals_sdr = vocals_sdr.mean()
+                drums_sdr = vocals_sdr.mean()
+                bass_sdr = vocals_sdr.mean()
+                accompaniment_sdr = vocals_sdr.mean()
 
-                print("*******")
-                print("*******")
-                print([vocals_score, drums_score, bass_score, accompaniment_score])
-                print("*******")
-                print("*******")
+                row = {
+                    "ID": i,
+                    "Vocals SDR": vocals_sdr,
+                    "Drums SDR": drums_sdr,
+                    "Bass SDR": bass_sdr,
+                    "Accompaniment SDR": accompaniment_sdr,
+                    "Mean SDR": np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean(),
+                    "loss": loss.item()
+                }
+
+                print(row)
 
                 has_zeros = False
 
-                y1, y2 = targets[0, :, :lim, 0].numpy(), targets[0, :, :lim, 1].numpy()
+                '''y1, y2 = targets[0, :, :lim, 0].numpy(), targets[0, :, :lim, 1].numpy()
                 y_hat1, y_hat2 = predictions[0, :, 0, :].numpy(), predictions[0, :, 1, :].numpy()
 
                 if is_empty_source(y1) or is_empty_source(y2) or is_empty_source(y_hat1) or is_empty_source(y_hat2):
-                    has_zeros = True
+                    has_zeros = True'''
 
                 if not has_zeros:
 
-                    scores1, _, _, _ = bss_eval_sources(
+                    '''scores1, _, _, _ = bss_eval_sources(
                         y1,
                         y_hat1
                     )
@@ -266,7 +277,7 @@ class Separation(sb.Brain):
 
                     # scores = museval.evaluate(targets[0, :, :lim, :], predictions[0].permute(0, 2, 1))
 
-                    self.all_scores.append(scores)
+                    self.all_scores.append(scores)'''
 
                     results_path = self.hparams.save_folder + "/audio_results"
 
@@ -321,10 +332,6 @@ class Separation(sb.Brain):
                             sample_rate=44100
                         )
                         self.testindex = self.testindex + 1
-
-                loss = torch.tensor([0])
-
-        print(self.all_scores)
 
         return loss.detach()
 
