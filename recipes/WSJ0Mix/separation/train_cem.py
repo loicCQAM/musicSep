@@ -148,7 +148,7 @@ class Separation(sb.Brain):
                 if loss is not None:
                     loss = loss.mean()
 
-            if (loss < self.hparams.loss_upper_lim and loss.nelement() > 0 and loss is not None):
+            if (loss is not None and loss < self.hparams.loss_upper_lim and loss.nelement() > 0):
                 loss.backward()
                 if self.hparams.clip_grad_norm >= 0:
                     torch.nn.utils.clip_grad_norm_(
