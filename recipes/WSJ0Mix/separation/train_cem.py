@@ -145,6 +145,8 @@ class Separation(sb.Brain):
                 if loss_to_keep.nelement() > 0:
                     loss = loss_to_keep.mean()
             else:
+                if loss is None:
+                    loss = torch.tensor([0])
                 loss = loss.mean()
 
             if (
