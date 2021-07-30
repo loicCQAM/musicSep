@@ -51,7 +51,7 @@ def is_empty_source(source):
     return empty
 
 
-def check_non_zeros(source):
+def protect_non_zeros(source):
     dims = source.shape[0]
     for d in range(dims):
         if np.sum(source[d]) == 0:

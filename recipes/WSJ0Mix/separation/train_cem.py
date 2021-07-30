@@ -49,7 +49,7 @@ from torch.utils.data import Dataset, DataLoader
 import museval
 import musdb
 
-from utils import is_empty_source, check_non_zeros
+from utils import protect_non_zeros
 
 
 # Define training procedure
@@ -230,10 +230,10 @@ class Separation(sb.Brain):
                     "accompaniment": targets[0, 3, :lim, :].t().numpy(),
                 }
                     
-                true_values["vocals"] = check_non_zeros(true_values["vocals"])
-                true_values["drums"] = check_non_zeros(true_values["drums"])
-                true_values["bass"] = check_non_zeros(true_values["bass"])
-                true_values["accompaniment"] = check_non_zeros(true_values["accompaniment"])
+                true_values["vocals"] = protect_non_zeros(true_values["vocals"])
+                true_values["drums"] = protect_non_zeros(true_values["drums"])
+                true_values["bass"] = protect_non_zeros(true_values["bass"])
+                true_values["accompaniment"] = protect_non_zeros(true_values["accompaniment"])
 
                 vocals_sdr, _, _, _ = bss_eval_sources(true_values["vocals"], estimates["vocals"])
                 drums_sdr, _, _, _ = bss_eval_sources(true_values["drums"], estimates["drums"])
