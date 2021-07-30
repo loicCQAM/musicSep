@@ -85,7 +85,7 @@ class Separation(sb.Brain):
     def compute_objectives(self, predictions, targets):
         """Computes the sinr loss"""
         #return self.hparams.loss(predictions=predictions, targets=targets)
-        self.hparams.loss(targets, predictions)
+        return self.hparams.loss(targets, predictions)
 
     def fit_batch(self, batch):
         """Trains one batch"""
@@ -145,10 +145,11 @@ class Separation(sb.Brain):
                 if loss_to_keep.nelement() > 0:
                     loss = loss_to_keep.mean()
             else:
-                if loss is not None:
-                    loss = loss.mean()
+                loss = loss.mean()
 
-            if (loss is not None and loss < self.hparams.loss_upper_lim and loss.nelement() > 0):
+            if (
+                loss < self.hparams.loss_upper_lim and loss.nelement() > 0
+            ):  # the fix for computational problems
                 loss.backward()
                 if self.hparams.clip_grad_norm >= 0:
                     torch.nn.utils.clip_grad_norm_(
@@ -162,10 +163,7 @@ class Separation(sb.Brain):
                         self.nonfinite_count
                     )
                 )
-                if loss is None:
-                    loss = torch.tensor(0.0).to(self.device)
-                else:
-                    loss.data = torch.tensor(0).to(self.device)
+                loss.data = torch.tensor(0).to(self.device)
         self.optimizer.zero_grad()
 
         return loss.detach().cpu()
