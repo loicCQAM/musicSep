@@ -162,8 +162,10 @@ class Separation(sb.Brain):
                         self.nonfinite_count
                     )
                 )
-                #loss.data = torch.tensor(0).to(self.device)
-                loss = torch.tensor(0.0).to(self.device)
+                if loss is None:
+                    loss = torch.tensor(0.0).to(self.device)
+                else:
+                    loss.data = torch.tensor(0).to(self.device)
         self.optimizer.zero_grad()
 
         return loss.detach().cpu()
