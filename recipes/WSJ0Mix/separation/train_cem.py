@@ -187,6 +187,7 @@ class Separation(sb.Brain):
 
             loss = self.compute_objectives(predictions, targets).mean()
         elif stage == sb.Stage.TEST:
+            print("EVALUATION")
             mixture = batch[0].to(self.device)
             targets = batch[1].to(self.device)
             lim = None
@@ -652,6 +653,8 @@ if __name__ == "__main__":
         separator.fit(
             separator.hparams.epoch_counter, train_loader, valid_loader
         )
+
+    print("Evaluate !")
 
     # Eval
     separator.modules = separator.modules.to('cpu')
