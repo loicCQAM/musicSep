@@ -202,8 +202,8 @@ class Separation(sb.Brain):
                     targets=None, inputs=inp, stage=sb.Stage.TEST
                 )
 
-                print(predictions.get_device())
-                print(ref.get_device())
+                predictions = predictions.to("cpu")
+                ref = ref.to("cpu")
 
                 predictions = predictions * ref.std() + ref.mean()
 
