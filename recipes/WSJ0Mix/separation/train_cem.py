@@ -84,7 +84,8 @@ class Separation(sb.Brain):
 
     def compute_objectives(self, predictions, targets):
         """Computes the sinr loss"""
-        return self.hparams.loss(predictions=predictions, targets=targets)
+        #return self.hparams.loss(predictions=predictions, targets=targets)
+        self.hparams.loss(targets, predictions)
 
     def fit_batch(self, batch):
         """Trains one batch"""
@@ -309,8 +310,8 @@ class Separation(sb.Brain):
                         src=targets[0, 3, :lim, :].t(),
                         sample_rate=44100
                     )
-                    self.testindex = self.testindex + 1
 
+                self.testindex = self.testindex + 1
                 loss = torch.tensor([0])
 
         return loss.detach()
