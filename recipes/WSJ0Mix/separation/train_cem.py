@@ -49,7 +49,7 @@ from torch.utils.data import Dataset, DataLoader
 import museval
 import musdb
 
-from utils import is_empty_source
+from utils import is_empty_source, check_non_zeros
 
 
 # Define training procedure
@@ -229,87 +229,87 @@ class Separation(sb.Brain):
                     "bass": targets[0, 2, :lim, :].t().numpy(),
                     "accompaniment": targets[0, 3, :lim, :].t().numpy(),
                 }
+                    
+                true_values["vocals"] = check_non_zeros(true_values["vocals"])
+                true_values["drums"] = check_non_zeros(true_values["drums"])
+                true_values["bass"] = check_non_zeros(true_values["bass"])
+                true_values["accompaniment"] = check_non_zeros(true_values["accompaniment"])
 
-                if  not is_empty_source(true_values["vocals"]) and not is_empty_source(estimates["vocals"]) and \
-                    not is_empty_source(true_values["drums"]) and not is_empty_source(estimates["drums"]) and \
-                    not is_empty_source(true_values["bass"]) and not is_empty_source(estimates["bass"]) and \
-                    not is_empty_source(true_values["accompaniment"]) and not is_empty_source(estimates["accompaniment"]):
+                vocals_sdr, _, _, _ = bss_eval_sources(true_values["vocals"], estimates["vocals"])
+                drums_sdr, _, _, _ = bss_eval_sources(true_values["drums"], estimates["drums"])
+                bass_sdr, _, _, _ = bss_eval_sources(true_values["bass"], estimates["bass"])
+                accompaniment_sdr, _, _, _ = bss_eval_sources(true_values["accompaniment"], estimates["accompaniment"])
 
-                    vocals_sdr, _, _, _ = bss_eval_sources(true_values["vocals"], estimates["vocals"])
-                    drums_sdr, _, _, _ = bss_eval_sources(true_values["drums"], estimates["drums"])
-                    bass_sdr, _, _, _ = bss_eval_sources(true_values["bass"], estimates["bass"])
-                    accompaniment_sdr, _, _, _ = bss_eval_sources(true_values["accompaniment"], estimates["accompaniment"])
+                vocals_sdr = vocals_sdr.mean()
+                drums_sdr = drums_sdr.mean()
+                bass_sdr = bass_sdr.mean()
+                accompaniment_sdr = accompaniment_sdr.mean()
 
-                    vocals_sdr = vocals_sdr.mean()
-                    drums_sdr = drums_sdr.mean()
-                    bass_sdr = bass_sdr.mean()
-                    accompaniment_sdr = accompaniment_sdr.mean()
+                row = {
+                    "ID": i,
+                    "Vocals SDR": vocals_sdr,
+                    "Drums SDR": drums_sdr,
+                    "Bass SDR": bass_sdr,
+                    "Accompaniment SDR": accompaniment_sdr,
+                    "Mean SDR": np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
+                }
 
-                    row = {
-                        "ID": i,
-                        "Vocals SDR": vocals_sdr,
-                        "Drums SDR": drums_sdr,
-                        "Bass SDR": bass_sdr,
-                        "Accompaniment SDR": accompaniment_sdr,
-                        "Mean SDR": np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
-                    }
+                print("\n")
+                print(row)
 
-                    print("\n")
-                    print(row)
+                results_path = self.hparams.save_folder + "/audio_results"
 
-                    results_path = self.hparams.save_folder + "/audio_results"
+                if not os.path.exists(results_path):
+                    os.makedirs(results_path)
 
-                    if not os.path.exists(results_path):
-                        os.makedirs(results_path)
+                if i < 5:
+                    torchaudio.save(
+                        filepath=results_path + "/song_{}_mix.wav".format(i),
+                        src=mixture[0, :, :lim],
+                        sample_rate=44100
+                    )
+                    torchaudio.save(
+                        filepath=results_path + "/song_{}_drums_hat.wav".format(i),
+                        src=predictions[0, 0, :, :],
+                        sample_rate=44100
+                    )
+                    torchaudio.save(
+                        filepath=results_path + "/song_{}_bass_hat.wav".format(i),
+                        src=predictions[0, 1, :, :],
+                        sample_rate=44100
+                    )
+                    torchaudio.save(
+                        filepath=results_path + "/song_{}_accompaniment_hat.wav".format(i),
+                        src=predictions[0, 2, :, :],
+                        sample_rate=44100
+                    )
+                    torchaudio.save(
+                        filepath=results_path + "/song_{}_vocals_hat.wav".format(i),
+                        src=predictions[0, 3, :, :],
+                        sample_rate=44100
+                    )
 
-                    if i < 5:
-                        torchaudio.save(
-                            filepath=results_path + "/song_{}_mix.wav".format(i),
-                            src=mixture[0, :, :lim],
-                            sample_rate=44100
-                        )
-                        torchaudio.save(
-                            filepath=results_path + "/song_{}_drums_hat.wav".format(i),
-                            src=predictions[0, 0, :, :],
-                            sample_rate=44100
-                        )
-                        torchaudio.save(
-                            filepath=results_path + "/song_{}_bass_hat.wav".format(i),
-                            src=predictions[0, 1, :, :],
-                            sample_rate=44100
-                        )
-                        torchaudio.save(
-                            filepath=results_path + "/song_{}_accompaniment_hat.wav".format(i),
-                            src=predictions[0, 2, :, :],
-                            sample_rate=44100
-                        )
-                        torchaudio.save(
-                            filepath=results_path + "/song_{}_vocals_hat.wav".format(i),
-                            src=predictions[0, 3, :, :],
-                            sample_rate=44100
-                        )
-
-                        torchaudio.save(
-                            filepath=results_path + "/song_{}_drums.wav".format(i),
-                            src=targets[0, 0, :lim, :].t(),
-                            sample_rate=44100
-                        )
-                        torchaudio.save(
-                            filepath=results_path + "/song_{}_bass.wav".format(i),
-                            src=targets[0, 1, :lim, :].t(),
-                            sample_rate=44100
-                        )
-                        torchaudio.save(
-                            filepath=results_path + "/song_{}_accompaniment.wav".format(i),
-                            src=targets[0, 2, :lim, :].t(),
-                            sample_rate=44100
-                        )
-                        torchaudio.save(
-                            filepath=results_path + "/song_{}_vocals.wav".format(i),
-                            src=targets[0, 3, :lim, :].t(),
-                            sample_rate=44100
-                        )
-                        self.testindex = self.testindex + 1
+                    torchaudio.save(
+                        filepath=results_path + "/song_{}_drums.wav".format(i),
+                        src=targets[0, 0, :lim, :].t(),
+                        sample_rate=44100
+                    )
+                    torchaudio.save(
+                        filepath=results_path + "/song_{}_bass.wav".format(i),
+                        src=targets[0, 1, :lim, :].t(),
+                        sample_rate=44100
+                    )
+                    torchaudio.save(
+                        filepath=results_path + "/song_{}_accompaniment.wav".format(i),
+                        src=targets[0, 2, :lim, :].t(),
+                        sample_rate=44100
+                    )
+                    torchaudio.save(
+                        filepath=results_path + "/song_{}_vocals.wav".format(i),
+                        src=targets[0, 3, :lim, :].t(),
+                        sample_rate=44100
+                    )
+                    self.testindex = self.testindex + 1
 
                 loss = torch.tensor([0])
 

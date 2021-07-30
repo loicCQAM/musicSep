@@ -51,6 +51,14 @@ def is_empty_source(source):
     return empty
 
 
+def check_non_zeros(source):
+    dims = source.shape[0]
+    for d in range(dims):
+        if np.sum(source[d]) == 0:
+            print(source[d])
+    return source
+
+
 def average_metric(metric, count=1.):
     """
     Average `metric` which should be a float across all hosts. `count` should be
