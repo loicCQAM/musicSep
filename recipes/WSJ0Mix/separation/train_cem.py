@@ -187,7 +187,6 @@ class Separation(sb.Brain):
 
             loss = self.compute_objectives(predictions, targets).mean()
         elif stage == sb.Stage.TEST:
-            print("EVALUATION")
             mixture = batch[0].to(self.device)
             targets = batch[1].to(self.device)
             lim = None
