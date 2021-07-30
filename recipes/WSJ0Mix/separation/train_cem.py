@@ -215,8 +215,6 @@ class Separation(sb.Brain):
                 # predictions = predictions / preds_max
                 # predictions = predictions * st  + mean
 
-                
-
                 i = self.testindex
                 # track = self.test_mus.tracks[i]
 
@@ -252,6 +250,8 @@ class Separation(sb.Brain):
                     "Mean SDR": np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean(),
                     #"loss": loss.item()
                 }
+
+                print(row)
 
                 has_zeros = False
 
