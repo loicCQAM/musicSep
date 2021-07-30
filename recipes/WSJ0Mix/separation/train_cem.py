@@ -221,15 +221,26 @@ class Separation(sb.Brain):
                 # scores = museval.evaluate(targets[:, :, :lim, :].squeeze(0), predictions.squeeze(0).permute(0, 2, 1))
                 estimates = {
                     "vocals": predictions[0, 0, :, :].t().numpy(),
-                    "drums": predictions[0, 0, :, :].t().numpy(),
-                    "bass": predictions[0, 0, :, :].t().numpy(),
-                    "accompaniment": predictions[0, 0, :, :].t().numpy(),
+                    "drums": predictions[0, 1, :, :].t().numpy(),
+                    "bass": predictions[0, 2, :, :].t().numpy(),
+                    "accompaniment": predictions[0, 3, :, :].t().numpy(),
                 }
-                scores = museval.eval_mus_track(mixture, estimates)
+                true_values = {
+                    "vocals": targets[0, 0, :lim, :].t().numpy(),
+                    "drums": targets[0, 1, :lim, :].t().numpy(),
+                    "bass": targets[0, 2, :lim, :].t().numpy(),
+                    "accompaniment": targets[0, 3, :lim, :].t().numpy(),
+                }
+                vocals_score, _, _, _ = bss_eval_sources(true_values["vocals"], estimates["vocals"])
+                drums_score, _, _, _ = bss_eval_sources(true_values["drums"], estimates["drums"])
+                bass_score, _, _, _ = bss_eval_sources(true_values["bass"], estimates["bass"])
+                accompaniment_score, _, _, _ = bss_eval_sources(true_values["accompaniment"], estimates["accompaniment"])
+
+                # scores = museval.eval_mus_track(mixture, estimates)
 
                 print("*******")
                 print("*******")
-                print(scores)
+                print([vocals_score, drums_score, bass_score, accompaniment_score])
                 print("*******")
                 print("*******")
 
