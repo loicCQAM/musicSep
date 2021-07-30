@@ -203,6 +203,8 @@ class Separation(sb.Brain):
                 )
 
                 predictions = predictions.to("cpu")
+                mixture = mixture.to("cpu")
+                targets = targets.to("cpu")
                 ref = ref.to("cpu")
 
                 predictions = predictions * ref.std() + ref.mean()
@@ -211,21 +213,25 @@ class Separation(sb.Brain):
                 # predictions = predictions / preds_max
                 # predictions = predictions * st  + mean
 
-                mixture = mixture.to("cpu")
-                predictions = predictions.to("cpu")
-                targets = targets.to("cpu")
+                
 
                 i = self.testindex
                 # track = self.test_mus.tracks[i]
 
                 # scores = museval.evaluate(targets[:, :, :lim, :].squeeze(0), predictions.squeeze(0).permute(0, 2, 1))
-                '''estimates = {
-                    "vocals": predictions[0, -1, :, :].t().numpy(),
+                estimates = {
+                    "vocals": predictions[0, 0, :, :].t().numpy(),
                     "drums": predictions[0, 0, :, :].t().numpy(),
-                    "bass": predictions[0, 1, :, :].t().numpy(),
-                    "accompaniment": predictions[0, 2, :, :].t().numpy(),
-                }'''
-                # scores = museval.eval_mus_track(track, estimates)
+                    "bass": predictions[0, 0, :, :].t().numpy(),
+                    "accompaniment": predictions[0, 0, :, :].t().numpy(),
+                }
+                scores = museval.eval_mus_track(mixture, estimates)
+
+                print("*******")
+                print("*******")
+                print(scores)
+                print("*******")
+                print("*******")
 
                 has_zeros = False
 
@@ -273,7 +279,7 @@ class Separation(sb.Brain):
                             sample_rate=44100
                         )
                         torchaudio.save(
-                            filepath=results_path + "/song_{}_others_hat.wav".format(i),
+                            filepath=results_path + "/song_{}_accompaniment_hat.wav".format(i),
                             src=predictions[0, 2, :, :],
                             sample_rate=44100
                         )
@@ -294,7 +300,7 @@ class Separation(sb.Brain):
                             sample_rate=44100
                         )
                         torchaudio.save(
-                            filepath=results_path + "/song_{}_others.wav".format(i),
+                            filepath=results_path + "/song_{}_accompaniment.wav".format(i),
                             src=targets[0, 2, :lim, :].t(),
                             sample_rate=44100
                         )
@@ -306,6 +312,8 @@ class Separation(sb.Brain):
                         self.testindex = self.testindex + 1
 
                 loss = torch.tensor([0])
+
+        print(self.all_scores)
 
         return loss.detach()
 
