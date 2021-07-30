@@ -220,10 +220,10 @@ class Separation(sb.Brain):
 
                 # scores = museval.evaluate(targets[:, :, :lim, :].squeeze(0), predictions.squeeze(0).permute(0, 2, 1))
                 estimates = {
-                    "vocals": predictions[0, 0, :, :].t().numpy(),
-                    "drums": predictions[0, 1, :, :].t().numpy(),
-                    "bass": predictions[0, 2, :, :].t().numpy(),
-                    "accompaniment": predictions[0, 3, :, :].t().numpy(),
+                    "vocals": predictions[0, 0, :, :].numpy(),
+                    "drums": predictions[0, 1, :, :].numpy(),
+                    "bass": predictions[0, 2, :, :].numpy(),
+                    "accompaniment": predictions[0, 3, :, :].numpy(),
                 }
                 true_values = {
                     "vocals": targets[0, 0, :lim, :].t().numpy(),
