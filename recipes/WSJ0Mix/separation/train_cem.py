@@ -247,8 +247,15 @@ class Separation(sb.Brain):
                 drums_sdr = drums_sdr.mean()
                 bass_sdr = bass_sdr.mean()
                 accompaniment_sdr = accompaniment_sdr.mean()
+                sdr = np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
 
-                row = {
+                separator.all_sdrs.append(sdr)
+                separator.all_vocals_sdrs.append(vocals_sdr)
+                separator.all_drums_sdrs.append(drums_sdr)
+                separator.all_bass_sdrs.append(bass_sdr)
+                separator.all_accompaniment_sdrs.append(accompaniment_sdr)
+
+                '''row = {
                     "ID": i,
                     "Vocals SDR": vocals_sdr,
                     "Drums SDR": drums_sdr,
@@ -256,9 +263,6 @@ class Separation(sb.Brain):
                     "Accompaniment SDR": accompaniment_sdr,
                     "Mean SDR": np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
                 }
-
-                print("\n")
-                print(row)
 
                 results_path = self.hparams.save_folder + "/audio_results"
 
@@ -311,12 +315,16 @@ class Separation(sb.Brain):
                         filepath=results_path + "/song_{}_vocals.wav".format(i),
                         src=targets[0, 3, :lim, :].t(),
                         sample_rate=44100
-                    )
+                    )'''
 
-                self.testindex = self.testindex + 1
+                #self.testindex = self.testindex + 1
                 loss = torch.tensor([0])
 
         return loss.detach()
+
+    def save_results2():
+        print("Saving Results...")
+        print(self.all_sdrs)
 
     def on_stage_end(self, stage, stage_loss, epoch):
         """Gets called at the end of a epoch."""
@@ -476,6 +484,19 @@ class Separation(sb.Brain):
             # Loop over all test sentence
             with tqdm(test_loader, dynamic_ncols=True) as t:
                 for i, (mixture, targets) in enumerate(t):
+
+                    inp = inp.to("cpu")
+
+                    predictions, _ = self.compute_forward(
+                        targets=None, inputs=inp, stage=sb.Stage.TEST
+                    )
+
+                    #loss = self.compute_objectives(predictions, targets)
+
+                    predictions = predictions.to("cpu")
+                    mixture = mixture.to("cpu")
+                    targets = targets.to("cpu")
+                    ref = ref.to("cpu")
                     with torch.no_grad():
                         mixture = mixture.to("cpu")
                         targets = targets[0].permute(0, 2, 1).unsqueeze(0).to("cpu")
@@ -694,8 +715,24 @@ if __name__ == "__main__":
     separator.modules = separator.modules.to('cpu')
     separator.testindex = 0
     separator.all_scores = []
-    #separator.evaluate(test_loader, min_key="si-snr")
     separator.test_mus = test_mus
+    separator.all_sdrs = []
+    separator.all_vocals_sdrs = []
+    separator.all_drums_sdrs = []
+    separator.all_bass_sdrs = []
+    separator.all_accompaniment_sdrs = []
+    separator.all_sisnrs = []
+    separator.csv_columns = [
+        "ID",
+        "Vocals SDR",
+        "Drums SDR",
+        "Bass SDR",
+        "Accompaniment SDR",
+        "SDR"
+    ]
+
+    separator.evaluate(test_loader, min_key="si-snr")
+    separator.save_results2()
 
     # Save Results
-    separator.save_results(test_loader)
+    #separator.save_results(test_loader)
