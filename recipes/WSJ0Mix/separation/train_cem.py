@@ -747,14 +747,6 @@ if __name__ == "__main__":
     separator.all_bass_sdrs = []
     separator.all_accompaniment_sdrs = []
     separator.all_sisnrs = []
-    separator.csv_columns = [
-        "ID",
-        "Vocals SDR",
-        "Drums SDR",
-        "Bass SDR",
-        "Accompaniment SDR",
-        "SDR"
-    ]
 
     separator.evaluate(test_loader, min_key="si-snr")
     separator.save_results2()
