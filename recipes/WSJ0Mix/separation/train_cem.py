@@ -249,11 +249,11 @@ class Separation(sb.Brain):
                 accompaniment_sdr = accompaniment_sdr.mean()
                 sdr = np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
 
-                separator.all_sdrs.append(sdr)
-                separator.all_vocals_sdrs.append(vocals_sdr)
-                separator.all_drums_sdrs.append(drums_sdr)
-                separator.all_bass_sdrs.append(bass_sdr)
-                separator.all_accompaniment_sdrs.append(accompaniment_sdr)
+                self.all_sdrs.append(sdr)
+                self.all_vocals_sdrs.append(vocals_sdr)
+                self.all_drums_sdrs.append(drums_sdr)
+                self.all_bass_sdrs.append(bass_sdr)
+                self.all_accompaniment_sdrs.append(accompaniment_sdr)
 
                 results_path = self.hparams.save_folder + "/audio_results"
 
