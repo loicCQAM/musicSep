@@ -455,10 +455,8 @@ class Separation(sb.Brain):
 
         # Variable init
         all_sdrs = []
-        all_sdrs_i = []
         all_sisnrs = []
-        all_sisnrs_i = []
-        csv_columns = ["snt_id", "sdr", "sdr_i", "si-snr", "si-snr_i"]
+        csv_columns = ["snt_id", "sdr", "si-snr"]
 
         with open(save_file, "w") as results_csv:
             writer = csv.DictWriter(results_csv, fieldnames=csv_columns)
@@ -467,11 +465,17 @@ class Separation(sb.Brain):
             # Loop over all test sentence
             with tqdm(test_loader, dynamic_ncols=True) as t:
                 for i, batch in enumerate(t):
+                    #mixture = batch[:, 0, :, :].to(self.device)
+                    #targets = batch[:, 1:, :, :].to(self.device)
 
                     # Apply Separation
                     mixture = batch[0]
-                    snt_id = batch[0][0]
                     targets = batch[1:]
+
+                    print(batch.shape)
+                    print(mixture.shape)
+                    print(targets.shape)
+
                     predictions, targets = self.compute_forward(
                         targets, sb.Stage.TEST
                     )
@@ -484,10 +488,7 @@ class Separation(sb.Brain):
                         [batch[0][1]] * self.hparams.num_spks, dim=-1
                     )
                     mixture_signal = mixture_signal.to(targets.device)
-                    sisnr_baseline = self.compute_objectives(
-                        mixture_signal, targets
-                    )
-                    sisnr_i = sisnr - sisnr_baseline
+
 
                     # Compute SDR
                     sdr, _, _, _ = bss_eval_sources(
@@ -495,42 +496,27 @@ class Separation(sb.Brain):
                         predictions[0].t().detach().cpu().numpy(),
                     )
 
-                    sdr_baseline, _, _, _ = bss_eval_sources(
-                        targets[0].t().cpu().numpy(),
-                        mixture_signal[0].t().detach().cpu().numpy(),
-                    )
-
-                    sdr_i = sdr.mean() - sdr_baseline.mean()
-
                     # Saving on a csv file
                     row = {
-                        "snt_id": snt_id[0],
+                        "ID": i,
                         "sdr": sdr.mean(),
-                        "sdr_i": sdr_i,
-                        "si-snr": -sisnr.item(),
-                        "si-snr_i": -sisnr_i.item(),
+                        "si-snr": -sisnr.item()
                     }
                     writer.writerow(row)
 
                     # Metric Accumulation
                     all_sdrs.append(sdr.mean())
-                    all_sdrs_i.append(sdr_i.mean())
                     all_sisnrs.append(-sisnr.item())
-                    all_sisnrs_i.append(-sisnr_i.item())
 
                 row = {
                     "snt_id": "avg",
                     "sdr": np.array(all_sdrs).mean(),
-                    "sdr_i": np.array(all_sdrs_i).mean(),
-                    "si-snr": np.array(all_sisnrs).mean(),
-                    "si-snr_i": np.array(all_sisnrs_i).mean(),
+                    "si-snr": np.array(all_sisnrs).mean()
                 }
                 writer.writerow(row)
 
         logger.info("Mean SISNR is {}".format(np.array(all_sisnrs).mean()))
-        logger.info("Mean SISNRi is {}".format(np.array(all_sisnrs_i).mean()))
         logger.info("Mean SDR is {}".format(np.array(all_sdrs).mean()))
-        logger.info("Mean SDRi is {}".format(np.array(all_sdrs_i).mean()))
 
     def save_audio(self, snt_id, mixture, targets, predictions):
         "saves the test audio (mixture, targets, and estimated sources) on disk"
@@ -671,8 +657,8 @@ if __name__ == "__main__":
     separator.modules = separator.modules.to('cpu')
     separator.testindex = 0
     separator.all_scores = []
-    separator.evaluate(test_loader, min_key="si-snr")
+    #separator.evaluate(test_loader, min_key="si-snr")
     separator.test_mus = test_mus
 
     # Save Results
-    #separator.save_results(test_loader)
+    separator.save_results(test_loader)
