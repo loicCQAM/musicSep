@@ -478,6 +478,7 @@ class Separation(sb.Brain):
                             targets=None, inputs=mixture, stage=sb.Stage.TEST
                         )
 
+                        print("\n")
                         print(predictions.shape)
                         print(len(targets))
 
