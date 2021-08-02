@@ -471,7 +471,7 @@ class Separation(sb.Brain):
                 for i, (mixture, targets) in enumerate(t):
                     with torch.no_grad():
                         mixture = mixture.to("cpu")
-                        targets = targets.to("cpu")
+                        targets = targets[0].to("cpu")
                         ref = mixture.mean(dim=0)
 
                         predictions, _ = self.compute_forward(
@@ -480,7 +480,7 @@ class Separation(sb.Brain):
 
                         print("\n")
                         print(predictions.shape)
-                        print(targets[0].shape)
+                        print(targets.shape)
 
                         estimates = {
                             "vocals": predictions[0, 0, :, :].numpy(),
@@ -512,6 +512,8 @@ class Separation(sb.Brain):
                         sdr = np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
 
                         # Compute SI-SNR
+                        targets = targets.reshape(targets.size(0), -1, targets.size(-1))
+                        print(targets.shape)
                         sisnr = self.compute_objectives(predictions, targets)
 
                         # Saving on a csv file
