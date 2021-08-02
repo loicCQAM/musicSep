@@ -512,9 +512,8 @@ class Separation(sb.Brain):
                         sdr = np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
 
                         # Compute SI-SNR
-                        targets = targets.reshape(targets.size(0), -1, targets.size(-1))
-                        print(targets.shape)
-                        sisnr = self.compute_objectives(predictions, targets)
+                        targets_ = targets.reshape(targets.size(0), -1, targets.size(-1))
+                        sisnr = self.compute_objectives(predictions, targets_)
 
                         # Saving on a csv file
                         row = {
