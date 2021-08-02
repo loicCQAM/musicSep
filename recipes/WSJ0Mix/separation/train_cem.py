@@ -455,6 +455,10 @@ class Separation(sb.Brain):
 
         # Variable init
         all_sdrs = []
+        all_vocals_sdrs = []
+        all_drums_sdrs = []
+        all_bass_sdrs = []
+        all_accompaniment_sdrs = []
         all_sisnrs = []
         csv_columns = ["snt_id", "sdr", "si-snr"]
 
@@ -464,50 +468,76 @@ class Separation(sb.Brain):
 
             # Loop over all test sentence
             with tqdm(test_loader, dynamic_ncols=True) as t:
-                for i, batch in enumerate(t):
+                for i, (mixture, targets) in enumerate(t):
                     #mixture = batch[:, 0, :, :].to(self.device)
                     #targets = batch[:, 1:, :, :].to(self.device)
-
-                    # Apply Separation
-                    mixture = batch[0]
-                    targets = batch[1:]
+                    #mixture = batch[0].to(self.device)
+                    targets = targets.to(self.device)
 
                     predictions, targets = self.compute_forward(
                         targets, sb.Stage.TEST
                     )
 
+                    estimates = {
+                        "vocals": predictions[0, 0, :, :].numpy(),
+                        "drums": predictions[0, 1, :, :].numpy(),
+                        "bass": predictions[0, 2, :, :].numpy(),
+                        "accompaniment": predictions[0, 3, :, :].numpy(),
+                    }
+                    true_values = {
+                        "vocals": targets[0, 0, :, :].t().numpy(),
+                        "drums": targets[0, 1, :, :].t().numpy(),
+                        "bass": targets[0, 2, :, :].t().numpy(),
+                        "accompaniment": targets[0, 3, :, :].t().numpy(),
+                    }
+                        
+                    true_values["vocals"] = protect_non_zeros(true_values["vocals"])
+                    true_values["drums"] = protect_non_zeros(true_values["drums"])
+                    true_values["bass"] = protect_non_zeros(true_values["bass"])
+                    true_values["accompaniment"] = protect_non_zeros(true_values["accompaniment"])
+
+                    vocals_sdr, _, _, _ = bss_eval_sources(true_values["vocals"], estimates["vocals"])
+                    drums_sdr, _, _, _ = bss_eval_sources(true_values["drums"], estimates["drums"])
+                    bass_sdr, _, _, _ = bss_eval_sources(true_values["bass"], estimates["bass"])
+                    accompaniment_sdr, _, _, _ = bss_eval_sources(true_values["accompaniment"], estimates["accompaniment"])
+
+                    vocals_sdr = vocals_sdr.mean()
+                    drums_sdr = drums_sdr.mean()
+                    bass_sdr = bass_sdr.mean()
+                    accompaniment_sdr = accompaniment_sdr.mean()
+                    sdr = np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
+
                     # Compute SI-SNR
                     sisnr = self.compute_objectives(predictions, targets)
-
-                    # Compute SI-SNR improvement
-                    mixture_signal = torch.stack(
-                        [batch[0][1]] * self.hparams.num_spks, dim=-1
-                    )
-                    mixture_signal = mixture_signal.to(targets.device)
-
-
-                    # Compute SDR
-                    sdr, _, _, _ = bss_eval_sources(
-                        targets[0].t().cpu().numpy(),
-                        predictions[0].t().detach().cpu().numpy(),
-                    )
 
                     # Saving on a csv file
                     row = {
                         "ID": i,
-                        "sdr": sdr.mean(),
-                        "si-snr": -sisnr.item()
+                        "SI-SNR": -sisnr.item(),
+                        "Vocals SDR": vocals_sdr,
+                        "Drums SDR": drums_sdr,
+                        "Bass SDR": bass_sdr,
+                        "Accompaniment SDR": accompaniment_sdr,
+                        "SDR": sdr
                     }
                     writer.writerow(row)
 
                     # Metric Accumulation
-                    all_sdrs.append(sdr.mean())
                     all_sisnrs.append(-sisnr.item())
+                    all_vocals_sdrs.append(vocals_sdr)
+                    all_drums_sdrs.append(drums_sdr)
+                    all_bass_sdrs.append(bass_sdr)
+                    all_accompaniment_sdrs.append(accompaniment_sdr)
+                    all_sdrs.append(sdr)
 
                 row = {
                     "snt_id": "avg",
-                    "sdr": np.array(all_sdrs).mean(),
-                    "si-snr": np.array(all_sisnrs).mean()
+                    "Vocals SDR": np.array(all_sdrs).mean(),
+                    "Drums SDR": np.array(all_sdrs).mean(),
+                    "Bass SDR": np.array(all_sdrs).mean(),
+                    "Accompaniment SDR": np.array(all_sdrs).mean(),
+                    "SDR": np.array(all_sdrs).mean(),
+                    "SI-SNR": np.array(all_sisnrs).mean()
                 }
                 writer.writerow(row)
 
@@ -562,7 +592,7 @@ class musdb_test_dataset(Dataset):
 
     def __getitem__(self, idx):
         track = self.mus.tracks[idx]
-        track.chunk_duration = 5.0
+        track.chunk_duration = 4.0
         track.chunk_start = np.random.uniform(0, track.duration - track.chunk_duration)
         x = torch.from_numpy(track.audio.T).float()
         y = torch.from_numpy(track.stems[1:, :, :]).float()
