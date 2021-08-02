@@ -472,10 +472,6 @@ class Separation(sb.Brain):
                     mixture = batch[0]
                     targets = batch[1:]
 
-                    print(batch.shape)
-                    print(mixture.shape)
-                    print(targets.shape)
-
                     predictions, targets = self.compute_forward(
                         targets, sb.Stage.TEST
                     )
