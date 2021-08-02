@@ -478,10 +478,6 @@ class Separation(sb.Brain):
                             targets=None, inputs=mixture, stage=sb.Stage.TEST
                         )
 
-                        print("\n")
-                        print(predictions.shape)
-                        print(targets.shape)
-
                         estimates = {
                             "vocals": predictions[0, 0, :, :].numpy(),
                             "drums": predictions[0, 1, :, :].numpy(),
@@ -513,6 +509,9 @@ class Separation(sb.Brain):
 
                         # Compute SI-SNR
                         targets_ = targets.reshape(targets.size(0), -1, targets.size(-1))
+                        print("\n")
+                        print(predictions.shape)
+                        print(targets_.shape)
                         sisnr = self.compute_objectives(predictions, targets_)
 
                         # Saving on a csv file
