@@ -508,16 +508,16 @@ class Separation(sb.Brain):
                         sdr = np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
 
                         # Compute SI-SNR
-                        targets_ = targets.reshape(targets.size(0), -1, targets.size(-1))
-                        print("\n")
-                        print(predictions.shape)
-                        print(targets_.shape)
-                        sisnr = self.compute_objectives(predictions, targets_)
+                        #targets_ = targets.reshape(targets.size(0), -1, targets.size(-1))
+                        #print("\n")
+                        #print(predictions.shape)
+                        #print(targets_.shape)
+                        #sisnr = self.compute_objectives(predictions, targets_)
 
                         # Saving on a csv file
                         row = {
                             "ID": i,
-                            "SI-SNR": -sisnr.item(),
+                            #"SI-SNR": -sisnr.item(),
                             "Vocals SDR": vocals_sdr,
                             "Drums SDR": drums_sdr,
                             "Bass SDR": bass_sdr,
@@ -527,7 +527,7 @@ class Separation(sb.Brain):
                         writer.writerow(row)
 
                         # Metric Accumulation
-                        all_sisnrs.append(-sisnr.item())
+                        #all_sisnrs.append(-sisnr.item())
                         all_vocals_sdrs.append(vocals_sdr)
                         all_drums_sdrs.append(drums_sdr)
                         all_bass_sdrs.append(bass_sdr)
@@ -541,11 +541,11 @@ class Separation(sb.Brain):
                     "Bass SDR": np.array(all_sdrs).mean(),
                     "Accompaniment SDR": np.array(all_sdrs).mean(),
                     "SDR": np.array(all_sdrs).mean(),
-                    "SI-SNR": np.array(all_sisnrs).mean()
+                    #"SI-SNR": np.array(all_sisnrs).mean()
                 }
                 writer.writerow(row)
 
-        logger.info("Mean SISNR is {}".format(np.array(all_sisnrs).mean()))
+        #logger.info("Mean SISNR is {}".format(np.array(all_sisnrs).mean()))
         logger.info("Mean SDR is {}".format(np.array(all_sdrs).mean()))
 
     def save_audio(self, snt_id, mixture, targets, predictions):
