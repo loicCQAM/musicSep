@@ -535,7 +535,7 @@ class Separation(sb.Brain):
                         all_sdrs.append(sdr)
 
                 row = {
-                    "snt_id": "avg",
+                    "ID": "avg",
                     "Vocals SDR": np.array(all_sdrs).mean(),
                     "Drums SDR": np.array(all_sdrs).mean(),
                     "Bass SDR": np.array(all_sdrs).mean(),
