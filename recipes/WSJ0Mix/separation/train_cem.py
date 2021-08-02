@@ -486,13 +486,13 @@ class Separation(sb.Brain):
                             "vocals": predictions[0, 0, :, :].numpy(),
                             "drums": predictions[0, 1, :, :].numpy(),
                             "bass": predictions[0, 2, :, :].numpy(),
-                            "accompaniment": predictions[0, 3, :, :].numpy(),
+                            "accompaniment": predictions[0, 3, :, :].numpy()
                         }
                         true_values = {
-                            "vocals": targets[0, 0, :, :].t().numpy(),
-                            "drums": targets[0, 1, :, :].t().numpy(),
-                            "bass": targets[0, 2, :, :].t().numpy(),
-                            "accompaniment": targets[0, 3, :, :].t().numpy(),
+                            "vocals": targets[0, 0, :, :].numpy(),
+                            "drums": targets[0, 1, :, :].numpy(),
+                            "bass": targets[0, 2, :, :].numpy(),
+                            "accompaniment": targets[0, 3, :, :].numpy()
                         }
                             
                         true_values["vocals"] = protect_non_zeros(true_values["vocals"])
