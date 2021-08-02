@@ -255,15 +255,6 @@ class Separation(sb.Brain):
                 separator.all_bass_sdrs.append(bass_sdr)
                 separator.all_accompaniment_sdrs.append(accompaniment_sdr)
 
-                '''row = {
-                    "ID": i,
-                    "Vocals SDR": vocals_sdr,
-                    "Drums SDR": drums_sdr,
-                    "Bass SDR": bass_sdr,
-                    "Accompaniment SDR": accompaniment_sdr,
-                    "Mean SDR": np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
-                }
-
                 results_path = self.hparams.save_folder + "/audio_results"
 
                 if not os.path.exists(results_path):
@@ -315,16 +306,50 @@ class Separation(sb.Brain):
                         filepath=results_path + "/song_{}_vocals.wav".format(i),
                         src=targets[0, 3, :lim, :].t(),
                         sample_rate=44100
-                    )'''
+                    )
 
-                #self.testindex = self.testindex + 1
+                self.testindex = self.testindex + 1
                 loss = torch.tensor([0])
 
         return loss.detach()
 
-    def save_results2():
+    def save_results2(self):
         print("Saving Results...")
-        print(self.all_sdrs)
+        # Create folders where to store audio
+        save_file = os.path.join(self.hparams.output_folder, "test_results.csv")
+        # CSV columns
+        csv_columns = [
+            "ID",
+            "Vocals SDR",
+            "Drums SDR",
+            "Bass SDR",
+            "Accompaniment SDR",
+            "SDR"
+        ]
+        with open(save_file, "w") as results_csv:
+            writer = csv.DictWriter(results_csv, fieldnames=csv_columns)
+            writer.writeheader()
+            separator.all_sdrs = []
+
+            for i in range(len(self.all_sdrs)):
+                row = {
+                    "ID": i,
+                    "Vocals SDR": self.all_vocals_sdrs[i],
+                    "Drums SDR": self.all_drums_sdrs[i],
+                    "Bass SDR": self.all_bass_sdrs[i],
+                    "Accompaniment SDR": self.all_accompaniment_sdrs[i],
+                    "SDR": self.all_sdrs[i]
+                }
+                writer.writerow(row)
+            row = {
+                "ID": "avg",
+                "Vocals SDR": np.array(self.all_vocals_sdrs).mean(),
+                "Drums SDR": np.array(self.all_drums_sdrs).mean(),
+                "Bass SDR": np.array(self.all_bass_sdrs).mean(),
+                "Accompaniment SDR": np.array(self.all_accompaniment_sdrs).mean(),
+                "SDR": np.array(self.all_sdrs).mean()
+            }
+            writer.writerow(row)
 
     def on_stage_end(self, stage, stage_loss, epoch):
         """Gets called at the end of a epoch."""
