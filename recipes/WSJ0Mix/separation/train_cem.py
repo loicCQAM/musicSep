@@ -480,8 +480,7 @@ class Separation(sb.Brain):
 
                         print("\n")
                         print(predictions.shape)
-                        print(len(targets))
-                        print(type(targets[0]))
+                        print(targets[0].shape)
 
                         estimates = {
                             "vocals": predictions[0, 0, :, :].numpy(),
