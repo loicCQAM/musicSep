@@ -471,7 +471,7 @@ class Separation(sb.Brain):
                 for i, (mixture, targets) in enumerate(t):
                     with torch.no_grad():
                         mixture = mixture.to("cpu")
-                        targets = targets[0].to("cpu")
+                        targets = targets.to("cpu")
                         ref = mixture.mean(dim=0)
 
                         predictions, _ = self.compute_forward(
