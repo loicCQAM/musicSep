@@ -460,7 +460,14 @@ class Separation(sb.Brain):
         all_bass_sdrs = []
         all_accompaniment_sdrs = []
         all_sisnrs = []
-        csv_columns = ["snt_id", "sdr", "si-snr"]
+        csv_columns = [
+            "ID",
+            "Vocals SDR",
+            "Drums SDR",
+            "Bass SDR",
+            "Accompaniment SDR",
+            "SDR"
+        ]
 
         with open(save_file, "w") as results_csv:
             writer = csv.DictWriter(results_csv, fieldnames=csv_columns)
