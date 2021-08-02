@@ -478,6 +478,9 @@ class Separation(sb.Brain):
                             targets=None, inputs=mixture, stage=sb.Stage.TEST
                         )
 
+                        print(predictions.shape)
+                        print(len(targets))
+
                         estimates = {
                             "vocals": predictions[0, 0, :, :].numpy(),
                             "drums": predictions[0, 1, :, :].numpy(),
