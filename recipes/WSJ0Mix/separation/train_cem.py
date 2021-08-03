@@ -310,6 +310,7 @@ class Separation(sb.Brain):
 
                 self.testindex = self.testindex + 1
                 loss = torch.tensor([0])
+                print(self.all_sdrs)
 
         return loss.detach()
 
