@@ -320,12 +320,6 @@ class Separation(sb.Brain):
 
     def save_results2(self):
         print("Saving Results...")
-        # Remove NaNs
-        self.all_sdrs = self.all_sdrs[~np.isnan(np.array(self.all_sdrs))]
-        self.all_vocals_sdrs = self.all_vocals_sdrs[~np.isnan(np.array(self.all_vocals_sdrs))]
-        self.all_drums_sdrs = self.all_drums_sdrs[~np.isnan(np.array(self.all_drums_sdrs))]
-        self.all_bass_sdrs = self.all_bass_sdrs[~np.isnan(np.array(self.all_bass_sdrs))]
-        self.all_accompaniment_sdrs = self.all_accompaniment_sdrs[~np.isnan(np.array(self.all_accompaniment_sdrs))]
         # Create folders where to store audio
         save_file = os.path.join(self.hparams.output_folder, "test_results.csv")
         # CSV columns
