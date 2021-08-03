@@ -701,7 +701,7 @@ if __name__ == "__main__":
     if not hparams["test_only"]:
         train_set = Rawset(
             os.path.join(hparams["musdb_raw_path"], "train"),
-            samples=hparams["sample_rate"] * 8,
+            samples=hparams["sample_rate"] * 7,
             channels=2,
             streams=[0, 1, 2, 3, 4],
             stride=hparams["sample_rate"],
