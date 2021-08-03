@@ -249,6 +249,11 @@ class Separation(sb.Brain):
                 accompaniment_sdr = accompaniment_sdr.mean()
                 sdr = np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
 
+                print("\n")
+                print(sdr)
+                print(type(sdr))
+                print("----")
+
                 self.all_sdrs.append(sdr)
                 self.all_vocals_sdrs.append(vocals_sdr)
                 self.all_drums_sdrs.append(drums_sdr)
@@ -310,7 +315,6 @@ class Separation(sb.Brain):
 
                 self.testindex = self.testindex + 1
                 loss = torch.tensor([0])
-                print(self.all_sdrs)
 
         return loss.detach()
 
