@@ -315,6 +315,7 @@ class Separation(sb.Brain):
 
     def save_results2(self):
         print("Saving Results...")
+        print(self.all_sdrs)
         # Create folders where to store audio
         save_file = os.path.join(self.hparams.output_folder, "test_results.csv")
         # CSV columns
