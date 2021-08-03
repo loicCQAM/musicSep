@@ -238,6 +238,16 @@ class Separation(sb.Brain):
                 true_values["bass"] = protect_non_zeros(true_values["bass"])
                 true_values["accompaniment"] = protect_non_zeros(true_values["accompaniment"])
 
+                print("\n")
+                print(true_values["vocals"].shape)
+                print(estimates["vocals"].shape)
+                print(true_values["drums"].shape)
+                print(estimates["drums"].shape)
+                print(true_values["bass"].shape)
+                print(estimates["bass"].shape)
+                print(true_values["accompaniment"].shape)
+                print(estimates["accompaniment"].shape)
+
                 vocals_sdr, _, _, _ = bss_eval_sources(true_values["vocals"], estimates["vocals"])
                 drums_sdr, _, _, _ = bss_eval_sources(true_values["drums"], estimates["drums"])
                 bass_sdr, _, _, _ = bss_eval_sources(true_values["bass"], estimates["bass"])
@@ -248,11 +258,6 @@ class Separation(sb.Brain):
                 bass_sdr = bass_sdr.mean()
                 accompaniment_sdr = accompaniment_sdr.mean()
                 sdr = np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
-
-                print("\n")
-                print(sdr)
-                print(type(sdr))
-                print("----")
 
                 self.all_sdrs.append(sdr)
                 self.all_vocals_sdrs.append(vocals_sdr)
@@ -315,6 +320,7 @@ class Separation(sb.Brain):
 
                 self.testindex = self.testindex + 1
                 loss = torch.tensor([0])
+                print(self.all_sdrs)
 
         return loss.detach()
 
@@ -553,6 +559,16 @@ class Separation(sb.Brain):
                         true_values["drums"] = protect_non_zeros(true_values["drums"])
                         true_values["bass"] = protect_non_zeros(true_values["bass"])
                         true_values["accompaniment"] = protect_non_zeros(true_values["accompaniment"])
+
+                        print("\n")
+                        print(true_values["vocals"].shape)
+                        print(estimates["vocals"].shape)
+                        print(true_values["drums"].shape)
+                        print(estimates["drums"].shape)
+                        print(true_values["bass"].shape)
+                        print(estimates["bass"].shape)
+                        print(true_values["accompaniment"].shape)
+                        print(estimates["accompaniment"].shape)
 
                         vocals_sdr, _, _, _ = bss_eval_sources(true_values["vocals"], estimates["vocals"])
                         drums_sdr, _, _, _ = bss_eval_sources(true_values["drums"], estimates["drums"])
