@@ -687,29 +687,30 @@ if __name__ == "__main__":
         test_set, batch_size=hparams["N_batch"], shuffle=False
     )
 
-    train_set = Rawset(
-        os.path.join(hparams["musdb_raw_path"], "train"),
-        samples=hparams["sample_rate"] * hparams["sequence_length"],
-        channels=2,
-        streams=[0, 1, 2, 3, 4],
-        stride=hparams["sample_rate"],
-    )
+    if not hparams["test_only"]:
+        train_set = Rawset(
+            os.path.join(hparams["musdb_raw_path"], "train"),
+            samples=hparams["sample_rate"] * hparams["sequence_length"],
+            channels=2,
+            streams=[0, 1, 2, 3, 4],
+            stride=hparams["sample_rate"],
+        )
 
-    train_loader = DataLoader(
-        train_set, batch_size=hparams["N_batch"], shuffle=True
-    )
+        train_loader = DataLoader(
+            train_set, batch_size=hparams["N_batch"], shuffle=True
+        )
 
-    valid_set = Rawset(
-        os.path.join(hparams["musdb_raw_path"], "valid"),
-        samples=hparams["sample_rate"] * hparams["sequence_length"],
-        channels=2,
-        streams=[0, 1, 2, 3, 4],
-        stride=hparams["sample_rate"],
-    )
+        valid_set = Rawset(
+            os.path.join(hparams["musdb_raw_path"], "valid"),
+            samples=hparams["sample_rate"] * hparams["sequence_length"],
+            channels=2,
+            streams=[0, 1, 2, 3, 4],
+            stride=hparams["sample_rate"],
+        )
 
-    valid_loader = DataLoader(
-        valid_set, batch_size=hparams["N_batch"], shuffle=False
-    )
+        valid_loader = DataLoader(
+            valid_set, batch_size=hparams["N_batch"], shuffle=False
+        )
 
     # Brain class initialization
     separator = Separation(
