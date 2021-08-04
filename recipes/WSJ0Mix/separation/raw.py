@@ -53,8 +53,8 @@ class Rawset:
             self.streams = streams
         for entry in sorted(entries.keys()):
             streams = entries[entry]
-            print(sorted(streams))
-            print(ref_streams)
+            #print(sorted(streams))
+            #print(ref_streams)
             assert sorted(streams) == ref_streams
             file = self._path(*entry)
             length = file.stat().st_size // (4 * channels)
