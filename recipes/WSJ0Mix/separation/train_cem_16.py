@@ -550,16 +550,6 @@ class Separation(sb.Brain):
                         true_values["bass"] = protect_non_zeros(true_values["bass"])
                         true_values["accompaniment"] = protect_non_zeros(true_values["accompaniment"])
 
-                        print("\n")
-                        print(true_values["vocals"].shape)
-                        print(estimates["vocals"].shape)
-                        print(true_values["drums"].shape)
-                        print(estimates["drums"].shape)
-                        print(true_values["bass"].shape)
-                        print(estimates["bass"].shape)
-                        print(true_values["accompaniment"].shape)
-                        print(estimates["accompaniment"].shape)
-
                         vocals_sdr, _, _, _ = bss_eval_sources(true_values["vocals"], estimates["vocals"])
                         drums_sdr, _, _, _ = bss_eval_sources(true_values["drums"], estimates["drums"])
                         bass_sdr, _, _, _ = bss_eval_sources(true_values["bass"], estimates["bass"])
