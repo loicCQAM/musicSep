@@ -69,7 +69,7 @@ class Separation(sb.Brain):
             targets = self.augment(targets)
             inputs = targets.sum(dim=1)
 
-        est_source = self.hparams.convtasnet(inputs)
+        est_source = self.hparams.demucs(inputs)
         # Normalization
         est_source = est_source / est_source.abs().max(dim=-1, keepdim=True)[0]
 
