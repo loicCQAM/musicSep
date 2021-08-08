@@ -9,7 +9,7 @@ import math
 import julius
 from torch import nn
 
-from .utils import capture_init, center_trim
+from utils import capture_init, center_trim
 
 
 class BLSTM(nn.Module):
