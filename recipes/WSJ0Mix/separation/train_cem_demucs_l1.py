@@ -86,10 +86,11 @@ class Separation(sb.Brain):
     def compute_objectives(self, predictions, targets):
         """Computes the sinr loss"""
         #return self.hparams.loss(predictions=predictions, targets=targets)
+        predictions = predictions.permute(-1, 0, 1)
+        targets = targets.permute(-1, 0, 1)
         return self.hparams.loss(
             predictions=predictions,
-            targets=targets,
-            length=predictions.size(1)
+            targets=targets
         )
 
     def fit_batch(self, batch):
