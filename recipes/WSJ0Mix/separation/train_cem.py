@@ -212,11 +212,11 @@ class Separation(sb.Brain):
                 targets = targets.to("cpu")
                 ref = ref.to("cpu")
 
-                predictions = predictions * ref.std() + ref.mean()
+                #predictions = predictions * ref.std() + ref.mean()
 
-                # preds_max = predictions.max(-1, keepdim=True)[0]
-                # predictions = predictions / preds_max
-                # predictions = predictions * st  + mean
+                preds_max = predictions.max(-1, keepdim=True)[0]
+                predictions = predictions / preds_max
+                predictions = predictions * ref.std() + ref.mean()
 
                 i = self.testindex
 
