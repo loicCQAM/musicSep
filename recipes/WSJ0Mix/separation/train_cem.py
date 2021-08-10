@@ -199,7 +199,6 @@ class Separation(sb.Brain):
             with torch.no_grad():
                 ref = mixture.mean(dim=0)  # mono mixture
                 inp = mixture[:, :, :lim]  # - mean) / st
-
                 inp = inp.to("cpu")
 
                 predictions, _ = self.compute_forward(
@@ -213,7 +212,7 @@ class Separation(sb.Brain):
                 targets = targets.to("cpu")
                 ref = ref.to("cpu")
 
-                #predictions = predictions * ref.std() + ref.mean()
+                predictions = predictions * ref.std() + ref.mean()
 
                 # preds_max = predictions.max(-1, keepdim=True)[0]
                 # predictions = predictions / preds_max
