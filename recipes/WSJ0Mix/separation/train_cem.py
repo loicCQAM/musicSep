@@ -50,9 +50,6 @@ from torch.utils.data import Dataset, DataLoader
 import museval
 import musdb
 
-rawsound = AudioSegment.from_file("./input.m4a", "m4a")  
-normalizedsound = effects.normalize(rawsound)
-
 from utils import protect_non_zeros
 
 
