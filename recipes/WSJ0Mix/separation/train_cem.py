@@ -201,6 +201,8 @@ class Separation(sb.Brain):
                 inp = mixture[:, :, :lim]  # - mean) / st
                 inp = inp.to("cpu")
 
+                print(inp.shape)
+
                 predictions, _ = self.compute_forward(
                     targets=None, inputs=inp, stage=sb.Stage.TEST
                 )
@@ -212,7 +214,7 @@ class Separation(sb.Brain):
                 targets = targets.to("cpu")
                 ref = ref.to("cpu")
 
-                predictions = predictions * ref.std() + ref.mean()
+                #predictions = predictions * ref.std() + ref.mean()
 
                 # preds_max = predictions.max(-1, keepdim=True)[0]
                 # predictions = predictions / preds_max
