@@ -201,8 +201,6 @@ class Separation(sb.Brain):
                 inp = mixture[:, :, :lim]  # - mean) / st
                 inp = inp.to("cpu")
 
-                print(inp.shape)
-
                 predictions, _ = self.compute_forward(
                     targets=None, inputs=inp, stage=sb.Stage.TEST
                 )
@@ -262,7 +260,7 @@ class Separation(sb.Brain):
                 if not os.path.exists(results_path):
                     os.makedirs(results_path)
 
-                if sdr > 5.0:
+                if sdr > 4.0:
                     torchaudio.save(
                         filepath=results_path + "/song_{}_mix.wav".format(i),
                         src=mixture[0, :, :lim],
