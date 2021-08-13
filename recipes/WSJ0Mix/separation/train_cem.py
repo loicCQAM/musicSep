@@ -212,11 +212,11 @@ class Separation(sb.Brain):
                 targets = targets.to("cpu")
                 ref = ref.to("cpu")
 
-                #predictions = predictions * ref.std() + ref.mean()
-
-                preds_max = predictions.max(-1, keepdim=True)[0]
-                predictions = predictions / preds_max
                 predictions = predictions * ref.std() + ref.mean()
+
+                # preds_max = predictions.max(-1, keepdim=True)[0]
+                # predictions = predictions / preds_max
+                # predictions = predictions * ref.std() + ref.mean()
 
                 i = self.testindex
 
@@ -260,7 +260,7 @@ class Separation(sb.Brain):
                 if not os.path.exists(results_path):
                     os.makedirs(results_path)
 
-                if i < 5:
+                if i < 15:
                     torchaudio.save(
                         filepath=results_path + "/song_{}_mix.wav".format(i),
                         src=mixture[0, :, :lim],
