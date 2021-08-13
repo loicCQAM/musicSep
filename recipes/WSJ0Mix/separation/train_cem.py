@@ -50,6 +50,11 @@ from torch.utils.data import Dataset, DataLoader
 import museval
 import musdb
 
+from pydub import AudioSegment, effects  
+
+rawsound = AudioSegment.from_file("./input.m4a", "m4a")  
+normalizedsound = effects.normalize(rawsound)
+
 from utils import protect_non_zeros
 
 
@@ -262,7 +267,7 @@ class Separation(sb.Brain):
                 if not os.path.exists(results_path):
                     os.makedirs(results_path)
 
-                if i < 15:
+                if sdr > 5.0:
                     torchaudio.save(
                         filepath=results_path + "/song_{}_mix.wav".format(i),
                         src=mixture[0, :, :lim],
@@ -662,7 +667,7 @@ class musdb_test_dataset(Dataset):
 
     def __getitem__(self, idx):
         track = self.mus.tracks[idx]
-        track.chunk_duration = 4.0
+        track.chunk_duration = 10
         track.chunk_start = np.random.uniform(0, track.duration - track.chunk_duration)
         x = torch.from_numpy(track.audio.T).float()
         y = torch.from_numpy(track.stems[1:, :, :]).float()
