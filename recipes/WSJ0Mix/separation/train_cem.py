@@ -50,8 +50,6 @@ from torch.utils.data import Dataset, DataLoader
 import museval
 import musdb
 
-from pydub import AudioSegment, effects  
-
 rawsound = AudioSegment.from_file("./input.m4a", "m4a")  
 normalizedsound = effects.normalize(rawsound)
 
