@@ -310,7 +310,8 @@ class Separation(sb.Brain):
         )
 
     def save_results2(self):
-        print("Saving Results...")
+        print(self.result_report)
+        '''print("Saving Results...")
         # Create folders where to store audio
         save_file = os.path.join(self.hparams.output_folder, "test_results.csv")
         # CSV columns
@@ -345,7 +346,7 @@ class Separation(sb.Brain):
                 "Accompaniment SDR": np.array(self.all_accompaniment_sdrs).mean(),
                 "SDR": np.array(self.all_sdrs).mean()
             }
-            writer.writerow(row)
+            writer.writerow(row)'''
 
     def on_stage_end(self, stage, stage_loss, epoch):
         """Gets called at the end of a epoch."""
@@ -720,10 +721,7 @@ if __name__ == "__main__":
     }
 
     separator.evaluate(test_loader, min_key="si-snr")
-
-    print(separator.result_report)
-
-    #separator.save_results2()
+    separator.save_results2()
 
     # Save Results
     #separator.save_results(test_loader)
