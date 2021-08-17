@@ -65,12 +65,12 @@ class Separation(sb.Brain):
         """
 
         if stage == sb.Stage.TRAIN:
-            # predictions = self.compute_forward(inputs)
-            # sources = center_trim(targets, estimates)
-            targets = self.augment(targets)
+            targets = self.augment_data(targets)
             inputs = targets.sum(dim=1)
 
+        # Forward pass
         est_source = self.hparams.convtasnet(inputs)
+
         # Normalization
         est_source = est_source / est_source.abs().max(dim=-1, keepdim=True)[0]
 
@@ -81,14 +81,12 @@ class Separation(sb.Brain):
             est_source = F.pad(est_source, (0, T_origin - T_est))
         else:
             est_source = est_source[:, :, :, :T_origin]
+
         # [B, T, Number of speaker=2]
         return est_source, targets
 
     def compute_objectives(self, predictions, targets):
         """Computes the sinr loss"""
-        #return self.hparams.loss(predictions=predictions, targets=targets)
-        #print(predictions.shape)
-        #print(targets.shape)
         return self.hparams.loss(source=targets, estimate_source=predictions)
 
     def fit_batch(self, batch):
@@ -254,6 +252,14 @@ class Separation(sb.Brain):
 
         return loss.detach()
 
+    def augment_data(self, inputs):
+        augment = torch.nn.Sequential(
+            FlipSign(),
+            FlipChannels(),
+            Shift(self.hparams.sample_rate),
+            Remix(group_size=1)
+        ).to(self.hparams.device)
+        return augment(inputs)
 
     def get_sdr(self, source, prediction):
         source = protect_non_zeros(source)
@@ -311,7 +317,7 @@ class Separation(sb.Brain):
 
     def save_results2(self):
         print(self.result_report)
-        '''print("Saving Results...")
+        print("Saving Results...")
         # Create folders where to store audio
         save_file = os.path.join(self.hparams.output_folder, "test_results.csv")
         # CSV columns
@@ -323,30 +329,33 @@ class Separation(sb.Brain):
             "Accompaniment SDR",
             "SDR"
         ]
+        # Create CSV file
         with open(save_file, "w") as results_csv:
             writer = csv.DictWriter(results_csv, fieldnames=csv_columns)
             writer.writeheader()
-            separator.all_sdrs = []
 
-            for i in range(len(self.all_sdrs)):
+            # Loop all instances
+            for i in range(len(self.result_report["all_sdrs"])):
                 row = {
                     "ID": i,
-                    "Vocals SDR": self.all_vocals_sdrs[i],
-                    "Drums SDR": self.all_drums_sdrs[i],
-                    "Bass SDR": self.all_bass_sdrs[i],
-                    "Accompaniment SDR": self.all_accompaniment_sdrs[i],
-                    "SDR": self.all_sdrs[i]
+                    "Vocals SDR": self.result_report["all_vocals_sdrs"][i],
+                    "Drums SDR": self.result_report["all_drums_sdrs"][i],
+                    "Bass SDR": self.result_report["all_bass_sdrs"][i],
+                    "Accompaniment SDR": self.result_report["all_accompaniment_sdrs"][i],
+                    "SDR": self.result_report["all_sdrs"][i],
                 }
                 writer.writerow(row)
+
+            # Average
             row = {
-                "ID": "avg",
-                "Vocals SDR": np.array(self.all_vocals_sdrs).mean(),
-                "Drums SDR": np.array(self.all_drums_sdrs).mean(),
-                "Bass SDR": np.array(self.all_bass_sdrs).mean(),
-                "Accompaniment SDR": np.array(self.all_accompaniment_sdrs).mean(),
-                "SDR": np.array(self.all_sdrs).mean()
+                "ID": "Average",
+                "Vocals SDR": np.mean(self.result_report["all_vocals_sdrs"]),
+                "Drums SDR": np.mean(self.result_report["all_drums_sdrs"]),
+                "Bass SDR": np.mean(self.result_report["all_bass_sdrs"]),
+                "Accompaniment SDR": np.mean(self.result_report["all_accompaniment_sdrs"]),
+                "SDR": np.mean(self.result_report["all_sdrs"]),
             }
-            writer.writerow(row)'''
+            writer.writerow(row)
 
     def on_stage_end(self, stage, stage_loss, epoch):
         """Gets called at the end of a epoch."""
@@ -690,9 +699,6 @@ if __name__ == "__main__":
         run_opts=run_opts,
         checkpointer=hparams["checkpointer"],
     )
-    separator.augment = torch.nn.Sequential(
-        FlipSign(), FlipChannels(), Shift(hparams["sample_rate"]), Remix(group_size=1)
-    ).to(hparams["device"])
 
     # re-initialize the parameters
     for module in separator.modules.values():
@@ -704,8 +710,6 @@ if __name__ == "__main__":
         separator.fit(
             separator.hparams.epoch_counter, train_loader, valid_loader
         )
-
-    print("Evaluate !")
 
     # Eval
     separator.modules = separator.modules.to('cpu')
