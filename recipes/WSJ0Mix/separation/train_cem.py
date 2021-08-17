@@ -245,10 +245,13 @@ class Separation(sb.Brain):
 
                 # Save only examples of the best results
                 if sdr > 4.0:
-                    self.save_audio(results_path, results_path, mixture, predictions, targets)
+                    self.save_audio(separator.testindex, results_path, mixture, predictions, targets)
 
                 # Empty loss to satisfy return type of method
                 loss = torch.tensor([0])
+
+                # Increment count
+                separator.testindex += 1
 
         return loss.detach()
 
@@ -266,7 +269,7 @@ class Separation(sb.Brain):
         sdr, _, _, _ = bss_eval_sources(source, prediction)
         return sdr.mean()
 
-    def save_audio(self, results_path, mixture, predictions, targets):
+    def save_audio(self, i, results_path, mixture, predictions, targets):
         # Predictions
         torchaudio.save(
             filepath=results_path + "/song_{}_mix.wav".format(i),
