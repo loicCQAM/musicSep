@@ -50,6 +50,7 @@ from torch.utils.data import Dataset, DataLoader
 import museval
 import musdb
 
+from mir_eval.separation import bss_eval_sources
 from utils import protect_non_zeros
 
 
@@ -191,128 +192,122 @@ class Separation(sb.Brain):
 
             loss = self.compute_objectives(predictions, targets).mean()
         elif stage == sb.Stage.TEST:
+            # Send to device
             mixture = batch[0].to(self.device)
             targets = batch[1].to(self.device)
-            lim = None
-            from mir_eval.separation import bss_eval_sources
 
             with torch.no_grad():
-                ref = mixture.mean(dim=0)  # mono mixture
-                inp = mixture[:, :, :lim]  # - mean) / st
+                ref = mixture.mean(dim=0)
+                inp = mixture[:, :, :]
                 inp = inp.to("cpu")
 
+                # Get Prediction
                 predictions, _ = self.compute_forward(
                     targets=None, inputs=inp, stage=sb.Stage.TEST
                 )
-
-                #loss = self.compute_objectives(predictions, targets)
-
+                # Send to CPU
                 predictions = predictions.to("cpu")
                 mixture = mixture.to("cpu")
                 targets = targets.to("cpu")
                 ref = ref.to("cpu")
 
+                # Normalize
                 predictions = predictions * ref.std() + ref.mean()
 
-                # preds_max = predictions.max(-1, keepdim=True)[0]
-                # predictions = predictions / preds_max
-                # predictions = predictions * ref.std() + ref.mean()
+                # Predicted Values
+                vocals_hat = predictions[0, 0, :, :].numpy()
+                drums_hat = predictions[0, 1, :, :].numpy()
+                bass_hat = predictions[0, 2, :, :].numpy()
+                accompaniment_hat = predictions[0, 3, :, :].numpy()
 
-                i = self.testindex
+                # True Values
+                vocals = targets[0, 0, :, :].t().numpy()
+                drums = targets[0, 1, :, :].t().numpy()
+                bass = targets[0, 2, :, :].t().numpy()
+                accompaniment = targets[0, 3, :, :].t().numpy()
 
-                estimates = {
-                    "vocals": predictions[0, 0, :, :].numpy(),
-                    "drums": predictions[0, 1, :, :].numpy(),
-                    "bass": predictions[0, 2, :, :].numpy(),
-                    "accompaniment": predictions[0, 3, :, :].numpy(),
-                }
-                true_values = {
-                    "vocals": targets[0, 0, :lim, :].t().numpy(),
-                    "drums": targets[0, 1, :lim, :].t().numpy(),
-                    "bass": targets[0, 2, :lim, :].t().numpy(),
-                    "accompaniment": targets[0, 3, :lim, :].t().numpy(),
-                }
-                    
-                true_values["vocals"] = protect_non_zeros(true_values["vocals"])
-                true_values["drums"] = protect_non_zeros(true_values["drums"])
-                true_values["bass"] = protect_non_zeros(true_values["bass"])
-                true_values["accompaniment"] = protect_non_zeros(true_values["accompaniment"])
-
-                vocals_sdr, _, _, _ = bss_eval_sources(true_values["vocals"], estimates["vocals"])
-                drums_sdr, _, _, _ = bss_eval_sources(true_values["drums"], estimates["drums"])
-                bass_sdr, _, _, _ = bss_eval_sources(true_values["bass"], estimates["bass"])
-                accompaniment_sdr, _, _, _ = bss_eval_sources(true_values["accompaniment"], estimates["accompaniment"])
-
-                vocals_sdr = vocals_sdr.mean()
-                drums_sdr = drums_sdr.mean()
-                bass_sdr = bass_sdr.mean()
-                accompaniment_sdr = accompaniment_sdr.mean()
+                # SDR
+                vocals_sdr = self.get_sdr(vocals, vocals_hat)
+                drums_sdr = self.get_sdr(drums, drums_hat)
+                bass_sdr = self.get_sdr(bass, bass_hat)
+                accompaniment_sdr = self.get_sdr(accompaniment, accompaniment_hat)
                 sdr = np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
 
-                self.all_sdrs.append(sdr)
-                self.all_vocals_sdrs.append(vocals_sdr)
-                self.all_drums_sdrs.append(drums_sdr)
-                self.all_bass_sdrs.append(bass_sdr)
-                self.all_accompaniment_sdrs.append(accompaniment_sdr)
+                # Keep track of SDR values
+                self.result_report.all_sdrs.append(sdr)
+                self.result_report.all_vocals_sdrs.append(vocals_sdr)
+                self.result_report.all_drums_sdrs.append(drums_sdr)
+                self.result_report.all_bass_sdrs.append(bass_sdr)
+                self.result_report.all_accompaniment_sdrs.append(accompaniment_sdr)
 
+                # Create audio folder if it doesn't already exists
                 results_path = self.hparams.save_folder + "/audio_results"
-
                 if not os.path.exists(results_path):
                     os.makedirs(results_path)
 
+                # Save only examples of the best results
                 if sdr > 4.0:
-                    torchaudio.save(
-                        filepath=results_path + "/song_{}_mix.wav".format(i),
-                        src=mixture[0, :, :lim],
-                        sample_rate=44100
-                    )
-                    torchaudio.save(
-                        filepath=results_path + "/song_{}_drums_hat.wav".format(i),
-                        src=predictions[0, 0, :, :],
-                        sample_rate=44100
-                    )
-                    torchaudio.save(
-                        filepath=results_path + "/song_{}_bass_hat.wav".format(i),
-                        src=predictions[0, 1, :, :],
-                        sample_rate=44100
-                    )
-                    torchaudio.save(
-                        filepath=results_path + "/song_{}_accompaniment_hat.wav".format(i),
-                        src=predictions[0, 2, :, :],
-                        sample_rate=44100
-                    )
-                    torchaudio.save(
-                        filepath=results_path + "/song_{}_vocals_hat.wav".format(i),
-                        src=predictions[0, 3, :, :],
-                        sample_rate=44100
-                    )
+                    self.save_audio(results_path, results_path, mixture, predictions, targets)
 
-                    torchaudio.save(
-                        filepath=results_path + "/song_{}_drums.wav".format(i),
-                        src=targets[0, 0, :lim, :].t(),
-                        sample_rate=44100
-                    )
-                    torchaudio.save(
-                        filepath=results_path + "/song_{}_bass.wav".format(i),
-                        src=targets[0, 1, :lim, :].t(),
-                        sample_rate=44100
-                    )
-                    torchaudio.save(
-                        filepath=results_path + "/song_{}_accompaniment.wav".format(i),
-                        src=targets[0, 2, :lim, :].t(),
-                        sample_rate=44100
-                    )
-                    torchaudio.save(
-                        filepath=results_path + "/song_{}_vocals.wav".format(i),
-                        src=targets[0, 3, :lim, :].t(),
-                        sample_rate=44100
-                    )
-
-                self.testindex = self.testindex + 1
+                # Empty loss to satisfy return type of method
                 loss = torch.tensor([0])
-                print(self.all_sdrs)
 
         return loss.detach()
+
+
+    def get_sdr(self, source, prediction):
+        source = protect_non_zeros(source)
+        sdr, _, _, _ = bss_eval_sources(source, prediction)
+        return sdr.mean()
+
+    def save_audio(self, results_path, mixture, predictions, targets):
+        # Predictions
+        torchaudio.save(
+            filepath=results_path + "/song_{}_mix.wav".format(i),
+            src=mixture[0, :, :],
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_drums_hat.wav".format(i),
+            src=predictions[0, 0, :, :],
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_bass_hat.wav".format(i),
+            src=predictions[0, 1, :, :],
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_accompaniment_hat.wav".format(i),
+            src=predictions[0, 2, :, :],
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_vocals_hat.wav".format(i),
+            src=predictions[0, 3, :, :],
+            sample_rate=self.hparams.sample_rate
+        )
+        # Targets
+        torchaudio.save(
+            filepath=results_path + "/song_{}_drums.wav".format(i),
+            src=targets[0, 0, :, :].t(),
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_bass.wav".format(i),
+            src=targets[0, 1, :, :].t(),
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_accompaniment.wav".format(i),
+            src=targets[0, 2, :, :].t(),
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_vocals.wav".format(i),
+            src=targets[0, 3, :, :].t(),
+            sample_rate=self.hparams.sample_rate
+        )
 
     def save_results2(self):
         print("Saving Results...")
@@ -612,43 +607,6 @@ class Separation(sb.Brain):
         #logger.info("Mean SISNR is {}".format(np.array(all_sisnrs).mean()))
         logger.info("Mean SDR is {}".format(np.array(all_sdrs).mean()))
 
-    def save_audio(self, snt_id, mixture, targets, predictions):
-        "saves the test audio (mixture, targets, and estimated sources) on disk"
-
-        # Create outout folder
-        save_path = os.path.join(self.hparams.save_folder, "audio_results")
-        if not os.path.exists(save_path):
-            os.mkdir(save_path)
-
-        for ns in range(self.hparams.num_spks):
-
-            # Estimated source
-            signal = predictions[0, :, ns]
-            signal = signal / signal.abs().max()
-            save_file = os.path.join(
-                save_path, "item{}_source{}hat.wav".format(snt_id, ns + 1)
-            )
-            torchaudio.save(
-                save_file, signal.unsqueeze(0).cpu(), self.hparams.sample_rate
-            )
-
-            # Original source
-            signal = targets[0, :, ns]
-            signal = signal / signal.abs().max()
-            save_file = os.path.join(
-                save_path, "item{}_source{}.wav".format(snt_id, ns + 1)
-            )
-            torchaudio.save(
-                save_file, signal.unsqueeze(0).cpu(), self.hparams.sample_rate
-            )
-
-        # Mixture
-        signal = mixture[1][0, :]
-        signal = signal / signal.abs().max()
-        save_file = os.path.join(save_path, "item{}_mix.wav".format(snt_id))
-        torchaudio.save(
-            save_file, signal.unsqueeze(0).cpu(), self.hparams.sample_rate
-        )
 
 
 class musdb_test_dataset(Dataset):
@@ -753,15 +711,19 @@ if __name__ == "__main__":
     separator.testindex = 0
     separator.all_scores = []
     separator.test_mus = test_mus
-    separator.all_sdrs = []
-    separator.all_vocals_sdrs = []
-    separator.all_drums_sdrs = []
-    separator.all_bass_sdrs = []
-    separator.all_accompaniment_sdrs = []
-    separator.all_sisnrs = []
+    separator.result_report = {
+        "all_sdrs": [],
+        "all_vocals_sdrs": [],
+        "all_drums_sdrs": [],
+        "all_bass_sdrs": [],
+        "all_accompaniment_sdrs": []
+    }
 
     separator.evaluate(test_loader, min_key="si-snr")
-    separator.save_results2()
+
+    print(separator.result_report)
+
+    #separator.save_results2()
 
     # Save Results
     #separator.save_results(test_loader)
