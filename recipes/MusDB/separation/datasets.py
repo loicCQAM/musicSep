@@ -1,19 +1,15 @@
 # Libraries
-import argparse
 import musdb
 import numpy as np
 import os
-import tqdm
-import torch as th
+import torch
 
-# Partial imports
-from audio import AudioFile
+# Partial Imports
 from collections import defaultdict, namedtuple
 from pathlib import Path
-from torch.utils.data import DataLoader
+from torch.utils.data import Dataset
 
 ChunkInfo = namedtuple("ChunkInfo", ["file_index", "offset", "local_index"])
-
 
 class Rawset:
     """
@@ -48,9 +44,6 @@ class Rawset:
             self.streams = streams
         for entry in sorted(entries.keys()):
             streams = entries[entry]
-            print(sorted(streams))
-            print(ref_streams)
-            print(entry)
             assert sorted(streams) == ref_streams
             file = self._path(*entry)
             length = file.stat().st_size // (4 * channels)
@@ -101,8 +94,8 @@ class Rawset:
             content = file.read(to_read)
             assert len(content) == to_read
             content = np.frombuffer(content, dtype=np.float32)
-            streams.append(th.from_numpy(np.copy(content)).view(length, self.channels).t())
-        return th.stack(streams, dim=0)
+            streams.append(torch.from_numpy(np.copy(content)).view(length, self.channels).t())
+        return torch.stack(streams, dim=0)
 
     def name(self, index):
         chunk = self.chunk_info(index)
@@ -110,61 +103,18 @@ class Rawset:
         return folder / name
 
 
-class MusDBSet:
-    def __init__(self, mus, streams=slice(None), samplerate=44100, channels=2):
-        self.mus = mus
-        self.streams = streams
-        self.samplerate = samplerate
-        self.channels = channels
+
+class MusdbDataset(Dataset):
+    def __init__(self, hparams):
+      self._musdb = musdb.DB(hparams["musdb_path"], subsets=["test"])
 
     def __len__(self):
-        return len(self.mus.tracks)
+      return len(self._musdb)
 
-    def __getitem__(self, index):
-        track = self.mus.tracks[index]
-        return (track.name, AudioFile(track.path).read(channels=self.channels,
-                                                       seek_time=0,
-                                                       streams=self.streams,
-                                                       samplerate=self.samplerate))
-
-
-def build_raw(mus, destination, normalize, workers, samplerate, channels):
-    destination.mkdir(parents=True, exist_ok=True)
-    loader = DataLoader(MusDBSet(mus, channels=channels, samplerate=samplerate),
-                        batch_size=1,
-                        num_workers=workers,
-                        collate_fn=lambda x: x[0])
-    for name, streams in tqdm.tqdm(loader):
-        if normalize:
-            ref = streams[0].mean(dim=0)  # use mono mixture as reference
-            streams = (streams - ref.mean()) / ref.std()
-        for index, stream in enumerate(streams):
-            open(destination / (name + f'.{index}.raw'), "wb").write(stream.t().numpy().tobytes())
-
-
-def main():
-    parser = argparse.ArgumentParser('rawset')
-    parser.add_argument('--workers', type=int, default=10)
-    parser.add_argument('--samplerate', type=int, default=44100)
-    parser.add_argument('--channels', type=int, default=2)
-    parser.add_argument('musdb', type=Path)
-    parser.add_argument('destination', type=Path)
-
-    args = parser.parse_args()
-
-    build_raw(musdb.DB(root=args.musdb, subsets=["train"], split="train"),
-              args.destination / "train",
-              normalize=True,
-              channels=args.channels,
-              samplerate=args.samplerate,
-              workers=args.workers)
-    build_raw(musdb.DB(root=args.musdb, subsets=["train"], split="valid"),
-              args.destination / "valid",
-              normalize=True,
-              samplerate=args.samplerate,
-              channels=args.channels,
-              workers=args.workers)
-
-
-if __name__ == "__main__":
-    main()
+    def __getitem__(self, idx):
+      track = self._musdb.tracks[idx]
+      track.chunk_duration = 20
+      track.chunk_start = np.random.uniform(0, track.duration - track.chunk_duration)
+      x = torch.from_numpy(track.audio.T).float()
+      y = torch.from_numpy(track.stems[1:, :, :]).float()
+      return x, y

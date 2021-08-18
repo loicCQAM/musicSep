@@ -1,16 +1,21 @@
-# Libraries
-import argparse
-import musdb
-import numpy as np
-import os
-import tqdm
-import torch as th
+# Copyright (c) Facebook, Inc. and its affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the license found in the
+# LICENSE file in the root directory of this source tree.
 
-# Partial imports
-from audio import AudioFile
+import argparse
+import os
 from collections import defaultdict, namedtuple
 from pathlib import Path
+
+import musdb
+import numpy as np
+import torch as th
+import tqdm
 from torch.utils.data import DataLoader
+
+from audio import AudioFile
 
 ChunkInfo = namedtuple("ChunkInfo", ["file_index", "offset", "local_index"])
 
