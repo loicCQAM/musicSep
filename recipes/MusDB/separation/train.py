@@ -396,7 +396,7 @@ if __name__ == "__main__":
         )
 
         train_loader = DataLoader(
-            train_set, batch_size=hparams["N_batch"], shuffle=True
+            train_set, batch_size=hparams["batch"], shuffle=True
         )
 
         valid_set = Rawset(
@@ -408,7 +408,7 @@ if __name__ == "__main__":
         )
 
         valid_loader = DataLoader(
-            valid_set, batch_size=hparams["N_batch"], shuffle=False
+            valid_set, batch_size=hparams["batch"], shuffle=False
         )
 
     # Brain class initialization
