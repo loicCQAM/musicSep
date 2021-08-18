@@ -35,6 +35,7 @@ import torchaudio
 # Partial imports
 from hyperpyyaml import load_hyperpyyaml
 from mir_eval.separation import bss_eval_sources
+from speechbrain.processing.signal_processing import normalize
 from torch.utils.data import DataLoader
 
 # External files
