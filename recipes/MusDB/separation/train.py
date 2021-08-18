@@ -161,15 +161,12 @@ class Separation(sb.Brain):
 
                 # Normalize
                 predictions = predictions * ref.std() + ref.mean()
-                print("\n")
-                print(predictions.shape)
                 test = predictions.squeeze().permute(0, 2, 1)
                 test2 = []
                 for stem in test:
                     stem = normalize(stem.unsqueeze(0))
                     test2.append(stem)
                 test2 = torch.stack(test2).permute(1, 0, 3, 2)
-                print(test2.shape)
                 predictions = test2
 
                 # Predicted Values
@@ -191,6 +188,7 @@ class Separation(sb.Brain):
                 accompaniment_sdr = self.get_sdr(accompaniment, accompaniment_hat)
                 sdr = np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
 
+                print("\n")
                 print(self.result_report["all_sdrs"])
 
                 # Keep track of SDR values
@@ -460,4 +458,4 @@ if __name__ == "__main__":
     separator.evaluate(test_loader, min_key="si-snr")
     
     # Save Results
-    separator.save_results()
+    #separator.save_results()
