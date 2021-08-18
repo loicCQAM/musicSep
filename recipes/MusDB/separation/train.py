@@ -170,6 +170,7 @@ class Separation(sb.Brain):
                     test2.append(stem)
                 test2 = torch.stack(test2).permute(1, 0, 3, 2)
                 print(test2.shape)
+                predictions = test2
 
                 # Predicted Values
                 vocals_hat = predictions[0, 0, :, :].numpy()
