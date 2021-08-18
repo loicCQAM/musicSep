@@ -161,7 +161,9 @@ class Separation(sb.Brain):
 
                 # Normalize
                 predictions = predictions * ref.std() + ref.mean()
-                print(predictions.shape)
+                test = predictions.squeeze().permute(0, 2, 1)
+                for stem in test:
+                    print(stem.shape)
                 #predictions = self.hparams.normalize(predictions.permute())
 
                 # Predicted Values
@@ -182,6 +184,8 @@ class Separation(sb.Brain):
                 bass_sdr = self.get_sdr(bass, bass_hat)
                 accompaniment_sdr = self.get_sdr(accompaniment, accompaniment_hat)
                 sdr = np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
+
+                print(self.result_report["all_sdrs"])
 
                 # Keep track of SDR values
                 self.result_report["all_sdrs"].append(sdr)
@@ -217,7 +221,7 @@ class Separation(sb.Brain):
         return augment(inputs)
 
     def get_sdr(self, source, prediction):
-        source = protect_non_zeros(source)
+        source = self.protect_non_zeros(source)
         sdr, _, _, _ = bss_eval_sources(source, prediction)
         return sdr.mean()
 
