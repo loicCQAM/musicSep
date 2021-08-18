@@ -3,8 +3,6 @@
 dataset. The system employs an encoder, a decoder, and a masking network.
 
 To run this recipe, do the following:
-> python train.py hparams/sepformer.yaml
-> python train.py hparams/dualpath_rnn.yaml
 > python train.py hparams/convtasnet.yaml
 
 The experiment file is flexible enough to support different neural
@@ -19,172 +17,298 @@ Authors
  * Samuele Cornell 2020
  * Mirko Bronzi 2020
  * Jianyuan Zhong 2020
+ * Loic Prenevost 2021
 """
 
+# Libraries
+import csv
+import logging
+import numpy as np
 import os
+import speechbrain as sb
+import speechbrain.nnet.schedulers as schedulers
 import sys
 import torch
 import torch.nn.functional as F
 import torchaudio
-import speechbrain as sb
-import speechbrain.nnet.schedulers as schedulers
-from speechbrain.utils.distributed import run_on_main
-from torch.cuda.amp import autocast
-from hyperpyyaml import load_hyperpyyaml
-import numpy as np
-from tqdm import tqdm
-import csv
-import logging
-from prepare_data import prepare_wsjmix
-from utils import center_trim
 
-from model import Demucs
+# Partial imports
+from hyperpyyaml import load_hyperpyyaml
+from mir_eval.separation import bss_eval_sources
+from torch.utils.data import DataLoader
+
+# External files
+from augment import FlipChannels, FlipSign, Remix, Shift
+from datasets import MusdbDataset
+from raw import Rawset
+from tasnet import ConvTasNet
 
 
 # Define training procedure
 class Separation(sb.Brain):
-    def compute_forward(self, mix, targets, stage, noise=None):
-        """Forward computations from the mixture to the separated signals."""
+    def compute_forward(self, targets, stage, inputs=None):
+        """
+        :param mixture: raw audio - dimension [batch_size, time]
+        :param stage:
+        :param init_params:
+        :return:
+        """
 
-        # Convert targets to tensor
-        targets = torch.cat(
-            [targets[i][0].unsqueeze(-1)
-             for i in range(self.hparams.num_spks)],
-            dim=-1,
-        ).to(self.device)
+        if stage == sb.Stage.TRAIN:
+            targets = self.augment_data(targets)
+            inputs = targets.sum(dim=1)
 
-        targets = targets.permute(0, 2, 1).unsqueeze(2)
-        mix = targets.sum(dim=1).to(self.device)
+        # Forward pass
+        est_source = self.hparams.convtasnet(inputs)
 
-        # Separation
-        model = Demucs(
-            sources=3,
-            audio_channels=1,
-            resample=False
-        )
-        model = model.to(self.device)
-        estimates = model(mix)
-        targets = center_trim(targets, estimates)
+        # Normalization
+        est_source = est_source / est_source.abs().max(dim=-1, keepdim=True)[0]
 
-        print("Hello")
+        # T changed after conv1d in encoder, fix it here
+        T_origin = inputs.size(-1)
+        T_est = est_source.size(-1)
+        if T_origin > T_est:
+            est_source = F.pad(est_source, (0, T_origin - T_est))
+        else:
+            est_source = est_source[:, :, :, :T_origin]
 
-        return estimates, targets
+        # [B, T, Number of speaker=2]
+        return est_source, targets
 
     def compute_objectives(self, predictions, targets):
         """Computes the sinr loss"""
-        return self.hparams.loss(targets, predictions)
+        return self.hparams.loss(source=targets, estimate_source=predictions)
 
     def fit_batch(self, batch):
         """Trains one batch"""
-        # Unpacking batch list
-        mixture = batch.mix_sig
-        targets = [batch.s1_sig, batch.s2_sig]
+        # Get inputs
+        inputs = batch[:, 1:, :, :].to(self.device)
+        # Forward pass
+        predictions, targets = self.compute_forward(inputs, sb.Stage.TRAIN)
+        # Permute to fit expected shape in loss function
+        predictions, targets = (
+            predictions.permute(3, 0, 2, 1),
+            targets.permute(3, 0, 2, 1),
+        )
+        predictions = predictions.reshape(
+            predictions.size(0), -1, predictions.size(-1)
+        )
+        targets = targets.reshape(targets.size(0), -1, targets.size(-1))
 
-        if self.hparams.num_spks == 3:
-            targets.append(batch.s3_sig)
+        # Compute loss
+        loss = self.compute_objectives(predictions, targets)
+        loss = loss.mean()
 
-        print("************")
-        print("************")
-        print(len(targets))
-        print("************")
-        print("************")
-
-        if self.hparams.auto_mix_prec:
-            with autocast():
-                predictions, targets = self.compute_forward(
-                    mixture, targets, sb.Stage.TRAIN
+        # Fix for computational problems
+        if (loss < self.hparams.loss_upper_lim and loss.nelement() > 0):
+            loss.backward()
+            if self.hparams.clip_grad_norm >= 0:
+                torch.nn.utils.clip_grad_norm_(
+                    self.modules.parameters(), self.hparams.clip_grad_norm
                 )
-                loss = self.compute_objectives(predictions, targets)
-
-                # hard threshold the easy dataitems
-                if self.hparams.threshold_byloss:
-                    th = self.hparams.threshold
-                    loss_to_keep = loss[loss > th]
-                    if loss_to_keep.nelement() > 0:
-                        loss = loss_to_keep.mean()
-                else:
-                    loss = loss.mean()
-
-            if (
-                loss < self.hparams.loss_upper_lim and loss.nelement() > 0
-            ):  # the fix for computational problems
-                self.scaler.scale(loss).backward()
-                if self.hparams.clip_grad_norm >= 0:
-                    self.scaler.unscale_(self.optimizer)
-                    torch.nn.utils.clip_grad_norm_(
-                        self.modules.parameters(), self.hparams.clip_grad_norm,
-                    )
-                self.scaler.step(self.optimizer)
-                self.scaler.update()
-            else:
-                self.nonfinite_count += 1
-                logger.info(
-                    "infinite loss or empty loss! it happened {} times so far - skipping this batch".format(
-                        self.nonfinite_count
-                    )
-                )
-                loss.data = torch.tensor(0).to(self.device)
+            self.optimizer.step()
         else:
-            predictions, targets = self.compute_forward(
-                mixture, targets, sb.Stage.TRAIN
-            )
-            loss = self.compute_objectives(predictions, targets)
-
-            if self.hparams.threshold_byloss:
-                th = self.hparams.threshold
-                loss_to_keep = loss[loss > th]
-                if loss_to_keep.nelement() > 0:
-                    loss = loss_to_keep.mean()
-            else:
-                loss = loss.mean()
-
-            if (
-                loss < self.hparams.loss_upper_lim and loss.nelement() > 0
-            ):  # the fix for computational problems
-                loss.backward()
-                if self.hparams.clip_grad_norm >= 0:
-                    torch.nn.utils.clip_grad_norm_(
-                        self.modules.parameters(), self.hparams.clip_grad_norm
-                    )
-                self.optimizer.step()
-            else:
-                self.nonfinite_count += 1
-                logger.info(
-                    "infinite loss or empty loss! it happened {} times so far - skipping this batch".format(
-                        self.nonfinite_count
-                    )
+            self.nonfinite_count += 1
+            logger.info(
+                "infinite loss or empty loss! it happened {} times so far - skipping this batch".format(
+                    self.nonfinite_count
                 )
-                loss.data = torch.tensor(0).to(self.device)
+            )
+            loss.data = torch.tensor(0).to(self.device)
+        
         self.optimizer.zero_grad()
-
-        # free some space before next round
-        del mixture, targets, predictions
 
         return loss.detach().cpu()
 
     def evaluate_batch(self, batch, stage):
         """Computations needed for validation/test batches"""
-        snt_id = batch.id
-        mixture = batch.mix_sig
-        targets = [batch.s1_sig, batch.s2_sig]
-        if self.hparams.num_spks == 3:
-            targets.append(batch.s3_sig)
 
-        with torch.no_grad():
-            predictions, targets = self.compute_forward(
-                mixture, targets, stage)
-            loss = self.compute_objectives(predictions, targets)
+        if stage == sb.Stage.VALID:
+            mixture = batch[:, 0, :, :].to(self.device)
+            targets = batch[:, 1:, :, :].to(self.device)
 
-        # Manage audio file saving
-        if stage == sb.Stage.TEST and self.hparams.save_audio:
-            if hasattr(self.hparams, "n_audio_to_save"):
-                if self.hparams.n_audio_to_save > 0:
-                    self.save_audio(snt_id[0], mixture, targets, predictions)
-                    self.hparams.n_audio_to_save += -1
-            else:
-                self.save_audio(snt_id[0], mixture, targets, predictions)
+            predictions, targets = self.compute_forward(targets, sb.Stage.TRAIN)
+
+            predictions, targets = (
+                predictions.permute(3, 0, 2, 1),
+                targets.permute(3, 0, 2, 1),
+            )
+            predictions = predictions.reshape(
+                predictions.size(0), -1, predictions.size(-1)
+            )
+            targets = targets.reshape(targets.size(0), -1, targets.size(-1))
+
+            loss = self.compute_objectives(predictions, targets).mean()
+        elif stage == sb.Stage.TEST:
+            # Send to device
+            mixture = batch[0].to(self.device)
+            targets = batch[1].to(self.device)
+
+            with torch.no_grad():
+                ref = mixture.mean(dim=0)
+                inp = mixture[:, :, :]
+                inp = inp.to("cpu")
+
+                # Get Prediction
+                predictions, _ = self.compute_forward(
+                    targets=None, inputs=inp, stage=sb.Stage.TEST
+                )
+                # Send to CPU
+                predictions = predictions.to("cpu")
+                mixture = mixture.to("cpu")
+                targets = targets.to("cpu")
+                ref = ref.to("cpu")
+
+                # Normalize
+                predictions = predictions * ref.std() + ref.mean()
+
+                # Predicted Values
+                vocals_hat = predictions[0, 0, :, :].numpy()
+                drums_hat = predictions[0, 1, :, :].numpy()
+                bass_hat = predictions[0, 2, :, :].numpy()
+                accompaniment_hat = predictions[0, 3, :, :].numpy()
+
+                # True Values
+                vocals = targets[0, 0, :, :].t().numpy()
+                drums = targets[0, 1, :, :].t().numpy()
+                bass = targets[0, 2, :, :].t().numpy()
+                accompaniment = targets[0, 3, :, :].t().numpy()
+
+                # SDR
+                vocals_sdr = self.get_sdr(vocals, vocals_hat)
+                drums_sdr = self.get_sdr(drums, drums_hat)
+                bass_sdr = self.get_sdr(bass, bass_hat)
+                accompaniment_sdr = self.get_sdr(accompaniment, accompaniment_hat)
+                sdr = np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
+
+                # Keep track of SDR values
+                self.result_report["all_sdrs"].append(sdr)
+                self.result_report["all_vocals_sdrs"].append(vocals_sdr)
+                self.result_report["all_drums_sdrs"].append(drums_sdr)
+                self.result_report["all_bass_sdrs"].append(bass_sdr)
+                self.result_report["all_accompaniment_sdrs"].append(accompaniment_sdr)
+
+                # Create audio folder if it doesn't already exists
+                results_path = self.hparams.save_folder + "/audio_results"
+                if not os.path.exists(results_path):
+                    os.makedirs(results_path)
+
+                # Save only examples of the best results
+                if sdr > 4.0:
+                    self.save_audio(separator.testindex, results_path, mixture, predictions, targets)
+
+                # Empty loss to satisfy return type of method
+                loss = torch.tensor([0])
+
+                # Increment count
+                separator.testindex += 1
 
         return loss.detach()
+
+    def augment_data(self, inputs):
+        augment = torch.nn.Sequential(
+            FlipSign(),
+            FlipChannels(),
+            Shift(self.hparams.sample_rate),
+            Remix(group_size=1)
+        ).to(self.hparams.device)
+        return augment(inputs)
+
+    def get_sdr(self, source, prediction):
+        source = protect_non_zeros(source)
+        sdr, _, _, _ = bss_eval_sources(source, prediction)
+        return sdr.mean()
+
+    def save_audio(self, i, results_path, mixture, predictions, targets):
+        # Predictions
+        torchaudio.save(
+            filepath=results_path + "/song_{}_mix.wav".format(i),
+            src=mixture[0, :, :],
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_drums_hat.wav".format(i),
+            src=predictions[0, 0, :, :],
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_bass_hat.wav".format(i),
+            src=predictions[0, 1, :, :],
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_accompaniment_hat.wav".format(i),
+            src=predictions[0, 2, :, :],
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_vocals_hat.wav".format(i),
+            src=predictions[0, 3, :, :],
+            sample_rate=self.hparams.sample_rate
+        )
+        # Targets
+        torchaudio.save(
+            filepath=results_path + "/song_{}_drums.wav".format(i),
+            src=targets[0, 0, :, :].t(),
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_bass.wav".format(i),
+            src=targets[0, 1, :, :].t(),
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_accompaniment.wav".format(i),
+            src=targets[0, 2, :, :].t(),
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_vocals.wav".format(i),
+            src=targets[0, 3, :, :].t(),
+            sample_rate=self.hparams.sample_rate
+        )
+
+    def save_results(self):
+        print(self.result_report)
+        print("Saving Results...")
+        # Create folders where to store audio
+        save_file = os.path.join(self.hparams.output_folder, "test_results.csv")
+        # CSV columns
+        csv_columns = [
+            "ID",
+            "Vocals SDR",
+            "Drums SDR",
+            "Bass SDR",
+            "Accompaniment SDR",
+            "SDR"
+        ]
+        # Create CSV file
+        with open(save_file, "w") as results_csv:
+            writer = csv.DictWriter(results_csv, fieldnames=csv_columns)
+            writer.writeheader()
+
+            # Loop all instances
+            for i in range(len(self.result_report["all_sdrs"])):
+                row = {
+                    "ID": i,
+                    "Vocals SDR": self.result_report["all_vocals_sdrs"][i],
+                    "Drums SDR": self.result_report["all_drums_sdrs"][i],
+                    "Bass SDR": self.result_report["all_bass_sdrs"][i],
+                    "Accompaniment SDR": self.result_report["all_accompaniment_sdrs"][i],
+                    "SDR": self.result_report["all_sdrs"][i],
+                }
+                writer.writerow(row)
+
+            # Average
+            row = {
+                "ID": "Average",
+                "Vocals SDR": np.mean(self.result_report["all_vocals_sdrs"]),
+                "Drums SDR": np.mean(self.result_report["all_drums_sdrs"]),
+                "Bass SDR": np.mean(self.result_report["all_bass_sdrs"]),
+                "Accompaniment SDR": np.mean(self.result_report["all_accompaniment_sdrs"]),
+                "SDR": np.mean(self.result_report["all_sdrs"]),
+            }
+            writer.writerow(row)
 
     def on_stage_end(self, stage, stage_loss, epoch):
         """Gets called at the end of a epoch."""
@@ -218,76 +342,9 @@ class Separation(sb.Brain):
             )
         elif stage == sb.Stage.TEST:
             self.hparams.train_logger.log_stats(
-                stats_meta={
-                    "Epoch loaded": self.hparams.epoch_counter.current},
+                stats_meta={"Epoch loaded": self.hparams.epoch_counter.current},
                 test_stats=stage_stats,
             )
-
-    def add_speed_perturb(self, targets, targ_lens):
-        """Adds speed perturbation and random_shift to the input signals"""
-
-        min_len = -1
-        recombine = False
-
-        if self.hparams.use_speedperturb:
-            # Performing speed change (independently on each source)
-            new_targets = []
-            recombine = True
-
-            for i in range(targets.shape[-1]):
-                new_target = self.hparams.speedperturb(
-                    targets[:, :, i], targ_lens
-                )
-                new_targets.append(new_target)
-                if i == 0:
-                    min_len = new_target.shape[-1]
-                else:
-                    if new_target.shape[-1] < min_len:
-                        min_len = new_target.shape[-1]
-
-            if self.hparams.use_rand_shift:
-                # Performing random_shift (independently on each source)
-                recombine = True
-                for i in range(targets.shape[-1]):
-                    rand_shift = torch.randint(
-                        self.hparams.min_shift, self.hparams.max_shift, (1,)
-                    )
-                    new_targets[i] = new_targets[i].to(self.device)
-                    new_targets[i] = torch.roll(
-                        new_targets[i], shifts=(rand_shift[0],), dims=1
-                    )
-
-            # Re-combination
-            if recombine:
-                if self.hparams.use_speedperturb:
-                    targets = torch.zeros(
-                        targets.shape[0],
-                        min_len,
-                        targets.shape[-1],
-                        device=targets.device,
-                        dtype=torch.float,
-                    )
-                for i, new_target in enumerate(new_targets):
-                    targets[:, :, i] = new_targets[i][:, 0:min_len]
-
-        mix = targets.sum(-1)
-        return mix, targets
-
-    def cut_signals(self, mixture, targets):
-        """This function selects a random segment of a given length within the mixture.
-        The corresponding targets are selected accordingly"""
-        randstart = torch.randint(
-            0,
-            1 + max(0, mixture.shape[1] - self.hparams.training_signal_len),
-            (1,),
-        ).item()
-        targets = targets[
-            :, randstart: randstart + self.hparams.training_signal_len, :
-        ]
-        mixture = mixture[
-            :, randstart: randstart + self.hparams.training_signal_len
-        ]
-        return mixture, targets
 
     def reset_layer_recursively(self, layer):
         """Reinitializes the parameters of the neural networks"""
@@ -297,215 +354,19 @@ class Separation(sb.Brain):
             if layer != child_layer:
                 self.reset_layer_recursively(child_layer)
 
-    def save_results(self, test_data):
-        """This script computes the SDR and SI-SNR metrics and saves
-        them into a csv file"""
-
-        # This package is required for SDR computation
-        from mir_eval.separation import bss_eval_sources
-
-        # Create folders where to store audio
-        save_file = os.path.join(
-            self.hparams.output_folder, "test_results.csv")
-
-        # Variable init
-        all_sdrs = []
-        all_sdrs_i = []
-        all_sisnrs = []
-        all_sisnrs_i = []
-        csv_columns = ["snt_id", "sdr", "sdr_i", "si-snr", "si-snr_i"]
-
-        test_loader = sb.dataio.dataloader.make_dataloader(
-            test_data, **self.hparams.dataloader_opts
-        )
-
-        with open(save_file, "w") as results_csv:
-            writer = csv.DictWriter(results_csv, fieldnames=csv_columns)
-            writer.writeheader()
-
-            # Loop over all test sentence
-            with tqdm(test_loader, dynamic_ncols=True) as t:
-                for i, batch in enumerate(t):
-
-                    # Apply Separation
-                    mixture, mix_len = batch.mix_sig
-                    snt_id = batch.id
-                    targets = [batch.s1_sig, batch.s2_sig]
-                    if self.hparams.num_spks == 3:
-                        targets.append(batch.s3_sig)
-
-                    with torch.no_grad():
-                        predictions, targets = self.compute_forward(
-                            batch.mix_sig, targets, sb.Stage.TEST
-                        )
-
-                    # Compute SI-SNR
-                    sisnr = self.compute_objectives(predictions, targets)
-
-                    # Compute SI-SNR improvement
-                    mixture_signal = torch.stack(
-                        [mixture] * self.hparams.num_spks, dim=-1
-                    )
-                    mixture_signal = mixture_signal.to(targets.device)
-                    sisnr_baseline = self.compute_objectives(
-                        mixture_signal, targets
-                    )
-                    sisnr_i = sisnr - sisnr_baseline
-
-                    # Compute SDR
-                    sdr, _, _, _ = bss_eval_sources(
-                        targets[0].t().cpu().numpy(),
-                        predictions[0].t().detach().cpu().numpy(),
-                    )
-
-                    sdr_baseline, _, _, _ = bss_eval_sources(
-                        targets[0].t().cpu().numpy(),
-                        mixture_signal[0].t().detach().cpu().numpy(),
-                    )
-
-                    sdr_i = sdr.mean() - sdr_baseline.mean()
-
-                    # Saving on a csv file
-                    row = {
-                        "snt_id": snt_id[0],
-                        "sdr": sdr.mean(),
-                        "sdr_i": sdr_i,
-                        "si-snr": -sisnr.item(),
-                        "si-snr_i": -sisnr_i.item(),
-                    }
-                    writer.writerow(row)
-
-                    # Metric Accumulation
-                    all_sdrs.append(sdr.mean())
-                    all_sdrs_i.append(sdr_i.mean())
-                    all_sisnrs.append(-sisnr.item())
-                    all_sisnrs_i.append(-sisnr_i.item())
-
-                row = {
-                    "snt_id": "avg",
-                    "sdr": np.array(all_sdrs).mean(),
-                    "sdr_i": np.array(all_sdrs_i).mean(),
-                    "si-snr": np.array(all_sisnrs).mean(),
-                    "si-snr_i": np.array(all_sisnrs_i).mean(),
-                }
-                writer.writerow(row)
-
-        logger.info("Mean SISNR is {}".format(np.array(all_sisnrs).mean()))
-        logger.info("Mean SISNRi is {}".format(np.array(all_sisnrs_i).mean()))
-        logger.info("Mean SDR is {}".format(np.array(all_sdrs).mean()))
-        logger.info("Mean SDRi is {}".format(np.array(all_sdrs_i).mean()))
-
-    def save_audio(self, snt_id, mixture, targets, predictions):
-        "saves the test audio (mixture, targets, and estimated sources) on disk"
-
-        # Create outout folder
-        save_path = os.path.join(self.hparams.save_folder, "audio_results")
-        if not os.path.exists(save_path):
-            os.mkdir(save_path)
-
-        for ns in range(self.hparams.num_spks):
-
-            # Estimated source
-            signal = predictions[0, :, ns]
-            signal = signal / signal.abs().max()
-            save_file = os.path.join(
-                save_path, "item{}_source{}hat.wav".format(snt_id, ns + 1)
-            )
-            torchaudio.save(
-                save_file, signal.unsqueeze(0).cpu(), self.hparams.sample_rate
-            )
-
-            # Original source
-            signal = targets[0, :, ns]
-            signal = signal / signal.abs().max()
-            save_file = os.path.join(
-                save_path, "item{}_source{}.wav".format(snt_id, ns + 1)
-            )
-            torchaudio.save(
-                save_file, signal.unsqueeze(0).cpu(), self.hparams.sample_rate
-            )
-
-        # Mixture
-        signal = mixture[0][0, :]
-        signal = signal / signal.abs().max()
-        save_file = os.path.join(save_path, "item{}_mix.wav".format(snt_id))
-        torchaudio.save(
-            save_file, signal.unsqueeze(0).cpu(), self.hparams.sample_rate
-        )
-
-
-def dataio_prep(hparams):
-    """Creates data processing pipeline"""
-
-    # 1. Define datasets
-    train_data = sb.dataio.dataset.DynamicItemDataset.from_csv(
-        csv_path=hparams["train_data"],
-        replacements={"data_root": hparams["data_folder"]},
-    )
-
-    valid_data = sb.dataio.dataset.DynamicItemDataset.from_csv(
-        csv_path=hparams["valid_data"],
-        replacements={"data_root": hparams["data_folder"]},
-    )
-
-    test_data = sb.dataio.dataset.DynamicItemDataset.from_csv(
-        csv_path=hparams["test_data"],
-        replacements={"data_root": hparams["data_folder"]},
-    )
-
-    datasets = [train_data, valid_data, test_data]
-
-    # 2. Provide audio pipelines
-
-    @sb.utils.data_pipeline.takes("mix_wav")
-    @sb.utils.data_pipeline.provides("mix_sig")
-    def audio_pipeline_mix(mix_wav):
-        mix_sig = sb.dataio.dataio.read_audio(mix_wav)
-        return mix_sig
-
-    @sb.utils.data_pipeline.takes("s1_wav")
-    @sb.utils.data_pipeline.provides("s1_sig")
-    def audio_pipeline_s1(s1_wav):
-        s1_sig = sb.dataio.dataio.read_audio(s1_wav)
-        return s1_sig
-
-    @sb.utils.data_pipeline.takes("s2_wav")
-    @sb.utils.data_pipeline.provides("s2_sig")
-    def audio_pipeline_s2(s2_wav):
-        s2_sig = sb.dataio.dataio.read_audio(s2_wav)
-        return s2_sig
-
-    if hparams["num_spks"] == 3:
-
-        @sb.utils.data_pipeline.takes("s3_wav")
-        @sb.utils.data_pipeline.provides("s3_sig")
-        def audio_pipeline_s3(s3_wav):
-            s3_sig = sb.dataio.dataio.read_audio(s3_wav)
-            return s3_sig
-
-    sb.dataio.dataset.add_dynamic_item(datasets, audio_pipeline_mix)
-    sb.dataio.dataset.add_dynamic_item(datasets, audio_pipeline_s1)
-    sb.dataio.dataset.add_dynamic_item(datasets, audio_pipeline_s2)
-    if hparams["num_spks"] == 3:
-        sb.dataio.dataset.add_dynamic_item(datasets, audio_pipeline_s3)
-        sb.dataio.dataset.set_output_keys(
-            datasets, ["id", "mix_sig", "s1_sig", "s2_sig", "s3_sig"]
-        )
-    else:
-        sb.dataio.dataset.set_output_keys(
-            datasets, ["id", "mix_sig", "s1_sig", "s2_sig"]
-        )
-
-    return train_data, valid_data, test_data
+    def protect_non_zeros(source):
+        dims = source.shape[0]
+        for d in range(dims):
+            if np.sum(source[d]) == 0:
+                source[d][0] = 0.001
+        return source
 
 
 if __name__ == "__main__":
-
     # Load hyperparameters file with command-line overrides
     hparams_file, run_opts, overrides = sb.parse_arguments(sys.argv[1:])
     with open(hparams_file) as fin:
         hparams = load_hyperpyyaml(fin, overrides)
-    run_opts["auto_mix_prec"] = hparams["auto_mix_prec"]
 
     # Initialize ddp (useful only for multi-GPU DDP training)
     sb.utils.distributed.ddp_init_group(run_opts)
@@ -520,74 +381,35 @@ if __name__ == "__main__":
         overrides=overrides,
     )
 
-    # Check if wsj0_tr is set with dynamic mixing
-    if hparams["dynamic_mixing"] and not os.path.exists(
-        hparams["base_folder_dm"]
-    ):
-        print(
-            "Please, specify a valid base_folder_dm folder when using dynamic mixing"
+    # Test dataset & loader
+    test_set = MusdbDataset(hparams)
+    test_loader = DataLoader(test_set, batch_size=hparams["batch"], shuffle=False)
+
+    # Create training dataset & loaders if not in test only mode
+    if not hparams["test_only"]:
+        train_set = Rawset(
+            os.path.join(hparams["musdb_raw_path"], "train"),
+            samples=hparams["sample_rate"] * 5,
+            channels=2,
+            streams=[0, 1, 2, 3, 4],
+            stride=hparams["sample_rate"],
         )
-        sys.exit(1)
 
-    run_on_main(
-        prepare_wsjmix,
-        kwargs={
-            "datapath": hparams["data_folder"],
-            "savepath": hparams["save_folder"],
-            "n_spks": hparams["num_spks"],
-            "skip_prep": hparams["skip_prep"],
-            "fs": hparams["sample_rate"],
-        },
-    )
+        train_loader = DataLoader(
+            train_set, batch_size=hparams["N_batch"], shuffle=True
+        )
 
-    # Create dataset objects
-    if hparams["dynamic_mixing"]:
-        from dynamic_mixing import dynamic_mix_data_prep
+        valid_set = Rawset(
+            os.path.join(hparams["musdb_raw_path"], "valid"),
+            samples=hparams["sample_rate"] * 5,
+            channels=2,
+            streams=[0, 1, 2, 3, 4],
+            stride=hparams["sample_rate"],
+        )
 
-        # if the base_folder for dm is not processed, preprocess them
-        if "processed" not in hparams["base_folder_dm"]:
-            # if the processed folder already exists we just use it otherwise we do the preprocessing
-            if not os.path.exists(
-                os.path.normpath(hparams["base_folder_dm"]) + "_processed"
-            ):
-                from recipes.WSJ0Mix.meta.preprocess_dynamic_mixing import (
-                    resample_folder,
-                )
-
-                print("Resampling the base folder")
-                run_on_main(
-                    resample_folder,
-                    kwargs={
-                        "input_folder": hparams["base_folder_dm"],
-                        "output_folder": os.path.normpath(
-                            hparams["base_folder_dm"]
-                        )
-                        + "_processed",
-                        "fs": hparams["sample_rate"],
-                        "regex": "**/*.wav",
-                    },
-                )
-                # adjust the base_folder_dm path
-                hparams["base_folder_dm"] = (
-                    os.path.normpath(hparams["base_folder_dm"]) + "_processed"
-                )
-            else:
-                print(
-                    "Using the existing processed folder on the same directory as base_folder_dm"
-                )
-                hparams["base_folder_dm"] = (
-                    os.path.normpath(hparams["base_folder_dm"]) + "_processed"
-                )
-
-        train_data = dynamic_mix_data_prep(hparams)
-        _, valid_data, test_data = dataio_prep(hparams)
-    else:
-        train_data, valid_data, test_data = dataio_prep(hparams)
-
-    # Load pretrained model if pretrained_separator is present in the yaml
-    if "pretrained_separator" in hparams:
-        run_on_main(hparams["pretrained_separator"].collect_files)
-        hparams["pretrained_separator"].load_collected()
+        valid_loader = DataLoader(
+            valid_set, batch_size=hparams["N_batch"], shuffle=False
+        )
 
     # Brain class initialization
     separator = Separation(
@@ -598,21 +420,32 @@ if __name__ == "__main__":
         checkpointer=hparams["checkpointer"],
     )
 
-    # re-initialize the parameters if we don't use a pretrained model
-    if "pretrained_separator" not in hparams:
-        for module in separator.modules.values():
-            separator.reset_layer_recursively(module)
+    # re-initialize the parameters
+    for module in separator.modules.values():
+        separator.reset_layer_recursively(module)
 
+    # Start training if not in test only mode
     if not hparams["test_only"]:
         # Training
         separator.fit(
             separator.hparams.epoch_counter,
-            train_data,
-            valid_data,
-            train_loader_kwargs=hparams["dataloader_opts"],
-            valid_loader_kwargs=hparams["dataloader_opts"],
+            train_loader, valid_loader
         )
 
-    # Eval
-    separator.evaluate(test_data, min_key="si-snr")
-    separator.save_results(test_data)
+    # Model Evaluation
+    separator.modules = separator.modules.to('cpu')
+    separator.modules.eval()
+    separator.testindex = 0
+    separator.result_report = {
+        "all_sdrs": [],
+        "all_vocals_sdrs": [],
+        "all_drums_sdrs": [],
+        "all_bass_sdrs": [],
+        "all_accompaniment_sdrs": []
+    }
+
+    # Evaluate Model
+    separator.evaluate(test_loader, min_key="si-snr")
+    
+    # Save Results
+    separator.save_results()
