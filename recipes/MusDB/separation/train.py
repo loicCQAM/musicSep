@@ -160,6 +160,8 @@ class Separation(sb.Brain):
 
                 # Normalize
                 predictions = predictions * ref.std() + ref.mean()
+                print(predictions.shape)
+                #predictions = self.hparams.normalize(predictions.permute())
 
                 # Predicted Values
                 vocals_hat = predictions[0, 0, :, :].numpy()
