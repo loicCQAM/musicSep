@@ -170,6 +170,7 @@ class Separation(sb.Brain):
                     test2.append(stem)
                 #predictions = self.hparams.normalize(predictions.permute())
                 test2 = torch.stack(test2).permute(1, 0, 3, 2)
+                # y
                 print(test2.shape)
 
                 # Predicted Values
