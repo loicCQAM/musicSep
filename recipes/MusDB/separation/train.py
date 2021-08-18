@@ -161,10 +161,16 @@ class Separation(sb.Brain):
 
                 # Normalize
                 predictions = predictions * ref.std() + ref.mean()
+                print("\n")
+                print(predictions.shape)
                 test = predictions.squeeze().permute(0, 2, 1)
+                test2 = []
                 for stem in test:
-                    print(stem.shape)
+                    stem = stem.unsqueeze(0)
+                    test2.append(stem)
                 #predictions = self.hparams.normalize(predictions.permute())
+                test2 = torch.stack(test2)
+                print(test2.shape)
 
                 # Predicted Values
                 vocals_hat = predictions[0, 0, :, :].numpy()
@@ -360,7 +366,7 @@ class Separation(sb.Brain):
             if layer != child_layer:
                 self.reset_layer_recursively(child_layer)
 
-    def protect_non_zeros(source):
+    def protect_non_zeros(self, source):
         dims = source.shape[0]
         for d in range(dims):
             if np.sum(source[d]) == 0:
