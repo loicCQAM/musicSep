@@ -4,7 +4,7 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-import torch as th
+import torch
 from torch import nn
 
 
@@ -23,9 +23,9 @@ class Shift(nn.Module):
             if not self.training:
                 wav = wav[..., :length]
             else:
-                offsets = th.randint(self.shift, [batch, sources, 1, 1], device=wav.device)
+                offsets = torch.randint(self.shift, [batch, sources, 1, 1], device=wav.device)
                 offsets = offsets.expand(-1, -1, channels, -1)
-                indexes = th.arange(length, device=wav.device)
+                indexes = torch.arange(length, device=wav.device)
                 wav = wav.gather(3, indexes + offsets)
         return wav
 
@@ -37,10 +37,10 @@ class FlipChannels(nn.Module):
     def forward(self, wav):
         batch, sources, channels, time = wav.size()
         if self.training and wav.size(2) == 2:
-            left = th.randint(2, (batch, sources, 1, 1), device=wav.device)
+            left = torch.randint(2, (batch, sources, 1, 1), device=wav.device)
             left = left.expand(-1, -1, -1, time)
             right = 1 - left
-            wav = th.cat([wav.gather(2, left), wav.gather(2, right)], dim=2)
+            wav = torch.cat([wav.gather(2, left), wav.gather(2, right)], dim=2)
         return wav
 
 
@@ -51,7 +51,7 @@ class FlipSign(nn.Module):
     def forward(self, wav):
         batch, sources, channels, time = wav.size()
         if self.training:
-            signs = th.randint(2, (batch, sources, 1, 1), device=wav.device, dtype=th.float32)
+            signs = torch.randint(2, (batch, sources, 1, 1), device=wav.device, dtype=torch.float32)
             wav = wav * (2 * signs - 1)
         return wav
 
@@ -82,7 +82,7 @@ class Remix(nn.Module):
                 raise ValueError(f"Batch size {batch} must be divisible by group size {group_size}")
             groups = batch // group_size
             wav = wav.view(groups, group_size, streams, channels, time)
-            permutations = th.argsort(th.rand(groups, group_size, streams, 1, 1, device=device),
+            permutations = torch.argsort(torch.rand(groups, group_size, streams, 1, 1, device=device),
                                       dim=1)
             wav = wav.gather(1, permutations.expand(-1, -1, -1, channels, time))
             wav = wav.view(batch, streams, channels, time)

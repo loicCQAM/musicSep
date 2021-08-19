@@ -41,7 +41,7 @@ from torch.utils.data import DataLoader
 # External files
 from augment import FlipChannels, FlipSign, Remix, Shift
 from datasets import MusdbDataset, Rawset
-from tasnet import ConvTasNet
+#from tasnet import ConvTasNet
 
 
 # Define training procedure
