@@ -59,14 +59,14 @@ class Separation(sb.Brain):
             inputs = targets.sum(dim=1).to(self.hparams.device)
 
         # Forward pass
-        est_source = self.hparams.convtasnet(inputs)
+        est_source2 = self.hparams.convtasnet(inputs)
 
         print("\n")
         print("*************")
         print("*************")
         print("*************")
         print("From demucs")
-        print(est_source.shape)
+        print(est_source2.shape)
 
         # Convert targets to tensor
         '''targets = torch.cat(
