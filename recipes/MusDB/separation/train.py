@@ -72,67 +72,6 @@ class Separation(sb.Brain):
         # [B, T, Number of speaker=2]
         return est_source, targets
 
-    def compute_forward2(self, targets, stage, inputs=None):
-        """
-        :param mixture: raw audio - dimension [batch_size, time]
-        :param stage:
-        :param init_params:
-        :return:
-        """
-
-        if stage == sb.Stage.TRAIN:
-            targets = self.augment_data(targets)
-            inputs = targets.sum(dim=1)
-
-        # Forward pass
-        est_source2 = self.hparams.convtasnet(inputs)
-
-        print("\n")
-        print("*************")
-        print("*************")
-        print("*************")
-        print("From demucs")
-        print(est_source2.shape)
-
-        # Convert targets to tensor
-        '''targets = torch.cat(
-            [targets[i][0].unsqueeze(-1)
-             for i in range(self.hparams.num_instruments)],
-            dim=-1,
-        ).to(self.hparams.device)'''
-
-        # Separation
-        mix_w = self.hparams.Encoder(inputs)
-        est_mask = self.hparams.MaskNet(mix_w)
-        mix_w = torch.stack([mix_w] * self.hparams.num_instruments)
-        sep_h = mix_w * est_mask
-
-        # Decoding
-        est_source = torch.cat(
-            [
-                self.hparams.Decoder(sep_h[i]).unsqueeze(-1)
-                for i in range(self.hparams.num_instruments)
-            ],
-            dim=-1,
-        )
-
-        print("From SB Crap")
-        print(est_source.shape)
-        print("*************")
-        print("*************")
-        print("*************")
-
-        # T changed after conv1d in encoder, fix it here
-        T_origin = inputs.size(-1)
-        T_est = est_source.size(-1)
-        if T_origin > T_est:
-            est_source = F.pad(est_source, (0, T_origin - T_est))
-        else:
-            est_source = est_source[:, :, :, :T_origin]
-
-        # [B, T, Number of speaker=2]
-        return est_source, targets
-
     def compute_objectives(self, predictions, targets):
         """Computes the sinr loss"""
         return self.hparams.loss(source=targets, estimate_source=predictions)
@@ -220,6 +159,13 @@ class Separation(sb.Brain):
 
                 # Normalize
                 predictions = predictions * ref.std() + ref.mean()
+                test = predictions.squeeze().permute(0, 2, 1)
+                test2 = []
+                for stem in test:
+                    stem = normalize(stem.unsqueeze(0))
+                    test2.append(stem)
+                test2 = torch.stack(test2).permute(1, 0, 3, 2)
+                predictions = test2
 
                 # Predicted Values
                 vocals_hat = predictions[0, 0, :, :].numpy()
