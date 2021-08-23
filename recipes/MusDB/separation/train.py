@@ -59,6 +59,32 @@ class Separation(sb.Brain):
             inputs = targets.sum(dim=1)
 
         # Forward pass
+        est_source = self.hparams.convtasnet(inputs)
+
+        # T changed after conv1d in encoder, fix it here
+        T_origin = inputs.size(-1)
+        T_est = est_source.size(-1)
+        if T_origin > T_est:
+            est_source = F.pad(est_source, (0, T_origin - T_est))
+        else:
+            est_source = est_source[:, :, :, :T_origin]
+
+        # [B, T, Number of speaker=2]
+        return est_source, targets
+
+    def compute_forward2(self, targets, stage, inputs=None):
+        """
+        :param mixture: raw audio - dimension [batch_size, time]
+        :param stage:
+        :param init_params:
+        :return:
+        """
+
+        if stage == sb.Stage.TRAIN:
+            targets = self.augment_data(targets)
+            inputs = targets.sum(dim=1)
+
+        # Forward pass
         est_source2 = self.hparams.convtasnet(inputs)
 
         print("\n")
@@ -117,12 +143,6 @@ class Separation(sb.Brain):
         inputs = batch[:, 1:, :, :].to(self.device)
         # Forward pass
         predictions, targets = self.compute_forward(inputs, sb.Stage.TRAIN)
-
-        print("**********")
-        print(predictions.shape)
-        print(targets.shape)
-        print("**********")
-
         # Permute to fit expected shape in loss function
         predictions, targets = (
             predictions.permute(3, 0, 2, 1),
@@ -438,7 +458,7 @@ if __name__ == "__main__":
     if not hparams["test_only"]:
         train_set = Rawset(
             os.path.join(hparams["musdb_raw_path"], "train"),
-            samples=hparams["sample_rate"] * hparams["sequence_length"],
+            samples=hparams["sample_rate"] * 5,
             channels=2,
             streams=[0, 1, 2, 3, 4],
             stride=hparams["sample_rate"],
@@ -450,7 +470,7 @@ if __name__ == "__main__":
 
         valid_set = Rawset(
             os.path.join(hparams["musdb_raw_path"], "valid"),
-            samples=hparams["sample_rate"] * hparams["sequence_length"],
+            samples=hparams["sample_rate"] * 5,
             channels=2,
             streams=[0, 1, 2, 3, 4],
             stride=hparams["sample_rate"],
