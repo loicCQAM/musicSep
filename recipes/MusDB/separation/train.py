@@ -62,11 +62,11 @@ class Separation(sb.Brain):
         #est_source = self.hparams.convtasnet(inputs)
 
         # Convert targets to tensor
-        targets = torch.cat(
+        '''targets = torch.cat(
             [targets[i][0].unsqueeze(-1)
              for i in range(self.hparams.num_instruments)],
             dim=-1,
-        ).to(self.hparams.device)
+        ).to(self.hparams.device)'''
 
         # Separation
         mix_w = self.hparams.Encoder(inputs)
