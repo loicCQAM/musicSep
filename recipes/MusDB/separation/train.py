@@ -39,7 +39,7 @@ from speechbrain.processing.signal_processing import normalize
 from torch.utils.data import DataLoader
 
 # External files
-from augment import FlipChannels, FlipSign, Remix, Shift
+from speechbrain.processing.speech_augmentation import FlipChannels, FlipSign, Remix, Shift
 from datasets import MusdbDataset, Rawset
 
 
