@@ -46,7 +46,7 @@ from datasets import MusdbDataset, Rawset
 
 # Define training procedure
 class Separation(sb.Brain):
-    def compute_forward(self, targets, stage, inputs=None):
+    def compute_forward2(self, targets, stage, inputs=None):
         """
         :param mixture: raw audio - dimension [batch_size, time]
         :param stage:
@@ -76,7 +76,7 @@ class Separation(sb.Brain):
         # [B, T, Number of speaker=2]
         return est_source, targets
 
-    def compute_forward2(self, targets, stage, inputs=None):
+    def compute_forward(self, targets, stage, inputs=None):
         """
         :param mixture: raw audio - dimension [batch_size, time]
         :param stage:
@@ -89,14 +89,12 @@ class Separation(sb.Brain):
             inputs = targets.sum(dim=1)
 
         # Forward pass
-        est_source2 = self.hparams.convtasnet(inputs)
+        #est_source2 = self.hparams.convtasnet(inputs)
 
         print("\n")
         print("*************")
         print("*************")
         print("*************")
-        print("From demucs")
-        print(est_source2.shape)
 
         # Convert targets to tensor
         '''targets = torch.cat(
