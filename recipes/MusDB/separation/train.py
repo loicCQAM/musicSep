@@ -68,10 +68,6 @@ class Separation(sb.Brain):
             dim=-1,
         ).to(self.hparams.device)'''
 
-        print("\n")
-        print(targets.shape)
-        print("---")
-
         # Separation
         mix_w = self.hparams.Encoder(inputs)
         est_mask = self.hparams.MaskNet(mix_w)
@@ -108,6 +104,12 @@ class Separation(sb.Brain):
         inputs = batch[:, 1:, :, :].to(self.device)
         # Forward pass
         predictions, targets = self.compute_forward(inputs, sb.Stage.TRAIN)
+
+        print("**********")
+        print(predictions.shape)
+        print(targets.shape)
+        print("**********")
+
         # Permute to fit expected shape in loss function
         predictions, targets = (
             predictions.permute(3, 0, 2, 1),
