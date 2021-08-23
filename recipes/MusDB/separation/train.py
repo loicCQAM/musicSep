@@ -61,12 +61,15 @@ class Separation(sb.Brain):
         # Forward pass
         #est_source = self.hparams.convtasnet(inputs)
 
+        print("\n")
+        print(targets.shape)
+
         # Convert targets to tensor
-        '''targets = torch.cat(
+        targets = torch.cat(
             [targets[i][0].unsqueeze(-1)
              for i in range(self.hparams.num_instruments)],
             dim=-1,
-        ).to(self.hparams.device)'''
+        ).to(self.hparams.device)
 
         print("\n")
         print(targets.shape)
