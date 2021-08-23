@@ -129,7 +129,7 @@ class Separation(sb.Brain):
                 for i in range(self.hparams.num_instruments)
             ],
             dim=-1,
-        ).permute(1, 0, 2, 3)
+        )
 
         print("From SB Crap")
         print(est_source.shape)
