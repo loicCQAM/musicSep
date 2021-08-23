@@ -110,7 +110,7 @@ class Separation(sb.Brain):
 
         print(mix_w.shape)
 
-        est_mask = self.hparams.MaskNet(mix_w)
+        est_mask = self.hparams.MaskNet(mix_w).permute(1, 0, 2, 3)
 
         print(est_mask.shape)
 
