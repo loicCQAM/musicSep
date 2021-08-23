@@ -68,11 +68,12 @@ class Separation(sb.Brain):
             dim=-1,
         ).to(self.hparams.device)'''
 
+        print("\n")
         print(targets.shape)
-        print(targets.squeeze(0).shape)
+        print("---")
 
         # Separation
-        mix_w = self.hparams.Encoder(inputs.squeeze(0))
+        mix_w = self.hparams.Encoder(inputs)
         est_mask = self.hparams.MaskNet(mix_w)
         mix_w = torch.stack([mix_w] * self.hparams.num_instruments)
         sep_h = mix_w * est_mask
