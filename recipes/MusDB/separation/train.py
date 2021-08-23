@@ -109,6 +109,8 @@ class Separation(sb.Brain):
         mix_w = torch.stack([mix_w] * self.hparams.num_instruments)
         sep_h = mix_w * est_mask
 
+        print(sep_h.shape)
+
         # Decoding
         est_source = torch.cat(
             [
