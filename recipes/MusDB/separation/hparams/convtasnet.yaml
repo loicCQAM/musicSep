@@ -18,6 +18,7 @@ musdb_path: !PLACEHOLDER
 epochs: 35
 batch: 1
 sequence_length: 4
+num_instruments: 4
 sample_rate: 44100
 lr: 0.0003
 device: "cuda"
@@ -26,12 +27,60 @@ test_only: False
 epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
     limit: !ref <epochs>
 
+# Encoder parameters
+N_encoder_out: 256
+out_channels: 256
+kernel_size: 20
+kernel_stride: 10
+
 # Model
 convtasnet: !new:tasnet.ConvTasNet
     audio_channels: 2
     X: 8
+
+# Model
+Encoder: !new:speechbrain.lobes.models.dual_path.Encoder
+    kernel_size: !ref <kernel_size>
+    out_channels: !ref <N_encoder_out>
+
+
+intra: !new:speechbrain.lobes.models.dual_path.SBRNNBlock
+    num_layers: 1
+    input_size: !ref <out_channels>
+    hidden_channels: !ref <out_channels>
+    dropout: 0
+    bidirectional: True
+
+inter: !new:speechbrain.lobes.models.dual_path.SBRNNBlock
+    num_layers: 1
+    input_size: !ref <out_channels>
+    hidden_channels: !ref <out_channels>
+    dropout: 0
+    bidirectional: True
+
+MaskNet: !new:speechbrain.lobes.models.conv_tasnet.MaskNet
+    N: 256
+    B: 256
+    H: 512
+    P: 3
+    X: 8
+    R: 4
+    C: !ref <num_instruments>
+    norm_type: 'gLN'
+    causal: False
+    mask_nonlinear: 'relu'
+
+Decoder: !new:speechbrain.lobes.models.dual_path.Decoder
+    in_channels: !ref <N_encoder_out>
+    out_channels: 1
+    kernel_size: !ref <kernel_size>
+    stride: !ref <kernel_stride>
+    bias: False
+
 modules:
-    convtasnet: !ref <convtasnet>
+    encoder: !ref <Encoder>
+    decoder: !ref <Decoder>
+    masknet: !ref <MaskNet>
 
 # Optimizer
 optimizer: !name:torch.optim.Adam
@@ -53,7 +102,9 @@ clip_grad_norm: 5
 checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
     checkpoints_dir: !ref <save_folder>
     recoverables:
-        convtasnet: !ref <convtasnet>
+        encoder: !ref <Encoder>
+        decoder: !ref <Decoder>
+        masknet: !ref <MaskNet>
         counter: !ref <epoch_counter>
         lr_scheduler: !ref <lr_scheduler>
 

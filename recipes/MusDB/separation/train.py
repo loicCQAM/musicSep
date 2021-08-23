@@ -59,10 +59,29 @@ class Separation(sb.Brain):
             inputs = targets.sum(dim=1)
 
         # Forward pass
-        est_source = self.hparams.convtasnet(inputs)
+        #est_source = self.hparams.convtasnet(inputs)
 
-        # Normalization
-        est_source = est_source / est_source.abs().max(dim=-1, keepdim=True)[0]
+        # Convert targets to tensor
+        targets = torch.cat(
+            [targets[i][0].unsqueeze(-1)
+             for i in range(self.hparams.num_instruments)],
+            dim=-1,
+        ).to(self.hparams.device)
+
+        # Separation
+        mix_w = self.hparams.Encoder(inputs)
+        est_mask = self.hparams.MaskNet(mix_w)
+        mix_w = torch.stack([mix_w] * self.hparams.num_instruments)
+        sep_h = mix_w * est_mask
+
+        # Decoding
+        est_source = torch.cat(
+            [
+                self.hparams.Decoder(sep_h[i]).unsqueeze(-1)
+                for i in range(self.hparams.num_instruments)
+            ],
+            dim=-1,
+        )
 
         # T changed after conv1d in encoder, fix it here
         T_origin = inputs.size(-1)
