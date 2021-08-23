@@ -68,6 +68,8 @@ class Separation(sb.Brain):
             dim=-1,
         ).to(self.hparams.device)'''
 
+        print(targets.shape)
+
         # Separation
         mix_w = self.hparams.Encoder(inputs)
         est_mask = self.hparams.MaskNet(mix_w)
