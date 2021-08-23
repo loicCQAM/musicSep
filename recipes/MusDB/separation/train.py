@@ -133,9 +133,6 @@ class Separation(sb.Brain):
 
         print("From SB Crap")
         print(est_source.shape)
-        print("*************")
-        print("*************")
-        print("*************")
 
         # T changed after conv1d in encoder, fix it here
         T_origin = inputs.size(-1)
@@ -144,6 +141,11 @@ class Separation(sb.Brain):
             est_source = F.pad(est_source, (0, T_origin - T_est))
         else:
             est_source = est_source[:, :, :, :T_origin]
+
+        print(est_source.shape)
+        print("*************")
+        print("*************")
+        print("*************")
 
         # [B, T, Number of speaker=2]
         return est_source, targets
