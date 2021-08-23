@@ -40,7 +40,6 @@ from torch.utils.data import DataLoader
 
 # External files
 #from speechbrain.processing.speech_augmentation import FlipChannels, FlipSign, Remix, Shift
-from speechbrain.processing.speech_augmentation import AddNoise
 from datasets import MusdbDataset, Rawset
 
 
@@ -219,10 +218,10 @@ class Separation(sb.Brain):
 
     def augment_data(self, inputs):
         augment = torch.nn.Sequential(
-            FlipSign(),
-            FlipChannels(),
-            Shift(self.hparams.sample_rate),
-            Remix(group_size=1)
+            sb.processing.speech_augmentation.FlipSign(),
+            sb.processing.speech_augmentation.FlipChannels(),
+            sb.processing.speech_augmentation.Shift(self.hparams.sample_rate),
+            sb.processing.speech_augmentation.Remix(group_size=1)
         ).to(self.hparams.device)
         return augment(inputs)
 
