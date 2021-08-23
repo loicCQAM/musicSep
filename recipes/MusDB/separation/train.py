@@ -119,7 +119,6 @@ class Separation(sb.Brain):
         print(mix_w.shape)
 
         sep_h = mix_w * est_mask
-        sep_h = sep_h.permute(1, 0, 2, 3)
 
         print(sep_h.shape)
 
@@ -130,7 +129,7 @@ class Separation(sb.Brain):
                 for i in range(self.hparams.num_instruments)
             ],
             dim=-1,
-        )
+        ).permute(1, 0, 2, 3)
 
         print("From SB Crap")
         print(est_source.shape)
