@@ -61,9 +61,9 @@ class Separation(sb.Brain):
         # Forward pass
         est_source = self.hparams.convtasnet(inputs)
 
-        print("*****")
+        print("******")
         print(est_source.shape)
-        print("*****")
+        print("******")
 
         # T changed after conv1d in encoder, fix it here
         T_origin = inputs.size(-1)
