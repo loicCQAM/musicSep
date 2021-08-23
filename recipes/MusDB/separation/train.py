@@ -55,8 +55,8 @@ class Separation(sb.Brain):
         """
 
         if stage == sb.Stage.TRAIN:
-            targets = self.augment_data(targets).to(self.hparams.device)
-            inputs = targets.sum(dim=1).to(self.hparams.device)
+            targets = self.augment_data(targets).to(self.device)
+            inputs = targets.sum(dim=1).to(self.device)
 
         # Forward pass
         est_source2 = self.hparams.convtasnet(inputs)
