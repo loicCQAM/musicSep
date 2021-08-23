@@ -59,7 +59,14 @@ class Separation(sb.Brain):
             inputs = targets.sum(dim=1)
 
         # Forward pass
-        #est_source = self.hparams.convtasnet(inputs)
+        est_source = self.hparams.convtasnet(inputs)
+
+        print("\n")
+        print("*************")
+        print("*************")
+        print("*************")
+        print("From demucs")
+        print(est_source.shape)
 
         # Convert targets to tensor
         '''targets = torch.cat(
@@ -82,6 +89,12 @@ class Separation(sb.Brain):
             ],
             dim=-1,
         )
+
+        print("From SB Crap")
+        print(est_source.shape)
+        print("*************")
+        print("*************")
+        print("*************")
 
         # T changed after conv1d in encoder, fix it here
         T_origin = inputs.size(-1)
