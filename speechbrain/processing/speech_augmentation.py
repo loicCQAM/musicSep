@@ -221,8 +221,9 @@ class AddNoise(torch.nn.Module):
             )
 
         # Truncate noise_batch to max_length
-        noise_batch = noise_batch[:, start_index : start_index + max_length]
-        noise_len = (noise_len - start_index).clamp(max=max_length).unsqueeze(1)
+        noise_batch = noise_batch[:, start_index: start_index + max_length]
+        noise_len = (
+            noise_len - start_index).clamp(max=max_length).unsqueeze(1)
         return noise_batch, noise_len
 
     def _load_noise_batch_of_size(self, batch_size):
@@ -1126,7 +1127,7 @@ class DropChunk(torch.nn.Module):
             # Update waveform
             if not self.noise_factor:
                 for j in range(drop_times[i]):
-                    dropped_waveform[i, start[j] : end[j]] = 0.0
+                    dropped_waveform[i, start[j]: end[j]] = 0.0
             else:
                 # Uniform distribution of -2 to +2 * avg amplitude should
                 # preserve the average for normalization
@@ -1135,7 +1136,7 @@ class DropChunk(torch.nn.Module):
                     # zero-center the noise distribution
                     noise_vec = torch.rand(length[j], device=waveforms.device)
                     noise_vec = 2 * noise_max * noise_vec - noise_max
-                    dropped_waveform[i, start[j] : end[j]] = noise_vec
+                    dropped_waveform[i, start[j]: end[j]] = noise_vec
 
         return dropped_waveform
 

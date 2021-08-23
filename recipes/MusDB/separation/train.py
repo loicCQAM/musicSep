@@ -115,7 +115,7 @@ class Separation(sb.Brain):
                 )
             )
             loss.data = torch.tensor(0).to(self.device)
-        
+
         self.optimizer.zero_grad()
 
         return loss.detach().cpu()
@@ -127,7 +127,8 @@ class Separation(sb.Brain):
             mixture = batch[:, 0, :, :].to(self.device)
             targets = batch[:, 1:, :, :].to(self.device)
 
-            predictions, targets = self.compute_forward(targets, sb.Stage.TRAIN)
+            predictions, targets = self.compute_forward(
+                targets, sb.Stage.TRAIN)
 
             predictions, targets = (
                 predictions.permute(3, 0, 2, 1),
@@ -161,13 +162,6 @@ class Separation(sb.Brain):
 
                 # Normalize
                 predictions = predictions * ref.std() + ref.mean()
-                test = predictions.squeeze().permute(0, 2, 1)
-                test2 = []
-                for stem in test:
-                    stem = normalize(stem.unsqueeze(0))
-                    test2.append(stem)
-                test2 = torch.stack(test2).permute(1, 0, 3, 2)
-                predictions = test2
 
                 # Predicted Values
                 vocals_hat = predictions[0, 0, :, :].numpy()
@@ -185,8 +179,10 @@ class Separation(sb.Brain):
                 vocals_sdr = self.get_sdr(vocals, vocals_hat)
                 drums_sdr = self.get_sdr(drums, drums_hat)
                 bass_sdr = self.get_sdr(bass, bass_hat)
-                accompaniment_sdr = self.get_sdr(accompaniment, accompaniment_hat)
-                sdr = np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
+                accompaniment_sdr = self.get_sdr(
+                    accompaniment, accompaniment_hat)
+                sdr = np.array(
+                    [vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
 
                 print("\n")
                 print(self.result_report["all_sdrs"])
@@ -196,7 +192,8 @@ class Separation(sb.Brain):
                 self.result_report["all_vocals_sdrs"].append(vocals_sdr)
                 self.result_report["all_drums_sdrs"].append(drums_sdr)
                 self.result_report["all_bass_sdrs"].append(bass_sdr)
-                self.result_report["all_accompaniment_sdrs"].append(accompaniment_sdr)
+                self.result_report["all_accompaniment_sdrs"].append(
+                    accompaniment_sdr)
 
                 # Create audio folder if it doesn't already exists
                 results_path = self.hparams.save_folder + "/audio_results"
@@ -205,7 +202,8 @@ class Separation(sb.Brain):
 
                 # Save only examples of the best results
                 if sdr > 4.0:
-                    self.save_audio(separator.testindex, results_path, mixture, predictions, targets)
+                    self.save_audio(separator.testindex,
+                                    results_path, mixture, predictions, targets)
 
                 # Empty loss to satisfy return type of method
                 loss = torch.tensor([0])
@@ -282,7 +280,8 @@ class Separation(sb.Brain):
         print(self.result_report)
         print("Saving Results...")
         # Create folders where to store audio
-        save_file = os.path.join(self.hparams.output_folder, "test_results.csv")
+        save_file = os.path.join(
+            self.hparams.output_folder, "test_results.csv")
         # CSV columns
         csv_columns = [
             "ID",
@@ -352,7 +351,8 @@ class Separation(sb.Brain):
             )
         elif stage == sb.Stage.TEST:
             self.hparams.train_logger.log_stats(
-                stats_meta={"Epoch loaded": self.hparams.epoch_counter.current},
+                stats_meta={
+                    "Epoch loaded": self.hparams.epoch_counter.current},
                 test_stats=stage_stats,
             )
 
@@ -393,7 +393,8 @@ if __name__ == "__main__":
 
     # Test dataset & loader
     test_set = MusdbDataset(hparams)
-    test_loader = DataLoader(test_set, batch_size=hparams["batch"], shuffle=False)
+    test_loader = DataLoader(
+        test_set, batch_size=hparams["batch"], shuffle=False)
 
     # Create training dataset & loaders if not in test only mode
     if not hparams["test_only"]:
@@ -456,6 +457,6 @@ if __name__ == "__main__":
 
     # Evaluate Model
     separator.evaluate(test_loader, min_key="si-snr")
-    
+
     # Save Results
-    #separator.save_results()
+    # separator.save_results()
