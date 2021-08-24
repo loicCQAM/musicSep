@@ -36,6 +36,7 @@ import csv
 import logging
 
 from torch.utils.data import Dataset, DataLoader
+from mir_eval.separation import bss_eval_sources
 
 # sys.path.append(os.path.expanduser("~") + "/demucs/demucs")
 from raw import Rawset
@@ -49,8 +50,6 @@ from torch.utils.data import Dataset, DataLoader
 
 import museval
 import musdb
-
-from utils import protect_non_zeros
 
 
 # Define training procedure
@@ -85,9 +84,9 @@ class Separation(sb.Brain):
 
     def compute_objectives(self, predictions, targets):
         """Computes the sinr loss"""
-        #return self.hparams.loss(predictions=predictions, targets=targets)
-        #print(predictions.shape)
-        #print(targets.shape)
+        # return self.hparams.loss(predictions=predictions, targets=targets)
+        # print(predictions.shape)
+        # print(targets.shape)
         return self.hparams.loss(source=targets, estimate_source=predictions)
 
     def fit_batch(self, batch):
@@ -130,7 +129,8 @@ class Separation(sb.Brain):
                 )
                 loss.data = torch.tensor(0).to(self.device)
         else:
-            predictions, targets = self.compute_forward(targets, sb.Stage.TRAIN)
+            predictions, targets = self.compute_forward(
+                targets, sb.Stage.TRAIN)
 
             predictions, targets = (
                 predictions.permute(3, 0, 2, 1),
@@ -178,7 +178,8 @@ class Separation(sb.Brain):
             mixture = batch[:, 0, :, :].to(self.device)
             targets = batch[:, 1:, :, :].to(self.device)
 
-            predictions, targets = self.compute_forward(targets, sb.Stage.TRAIN)
+            predictions, targets = self.compute_forward(
+                targets, sb.Stage.TRAIN)
 
             predictions, targets = (
                 predictions.permute(3, 0, 2, 1),
@@ -191,167 +192,77 @@ class Separation(sb.Brain):
 
             loss = self.compute_objectives(predictions, targets).mean()
         elif stage == sb.Stage.TEST:
+            # Send to device
             mixture = batch[0].to(self.device)
             targets = batch[1].to(self.device)
-            lim = None
-            from mir_eval.separation import bss_eval_sources
 
             with torch.no_grad():
-                ref = mixture.mean(dim=0)  # mono mixture
-                inp = mixture[:, :, :lim]  # - mean) / st
-
+                ref = mixture.mean(dim=0)
+                inp = mixture[:, :, :]
                 inp = inp.to("cpu")
 
+                # Get Prediction
                 predictions, _ = self.compute_forward(
                     targets=None, inputs=inp, stage=sb.Stage.TEST
                 )
-
-                #loss = self.compute_objectives(predictions, targets)
-
+                # Send to CPU
                 predictions = predictions.to("cpu")
                 mixture = mixture.to("cpu")
                 targets = targets.to("cpu")
                 ref = ref.to("cpu")
 
-                #predictions = predictions * ref.std() + ref.mean()
+                # Normalize
+                predictions = predictions * ref.std() + ref.mean()
 
-                # preds_max = predictions.max(-1, keepdim=True)[0]
-                # predictions = predictions / preds_max
-                # predictions = predictions * st  + mean
+                # Predicted Values
+                vocals_hat = predictions[0, 0, :, :].numpy()
+                drums_hat = predictions[0, 1, :, :].numpy()
+                bass_hat = predictions[0, 2, :, :].numpy()
+                accompaniment_hat = predictions[0, 3, :, :].numpy()
 
-                i = self.testindex
+                # True Values
+                vocals = targets[0, 0, :, :].t().numpy()
+                drums = targets[0, 1, :, :].t().numpy()
+                bass = targets[0, 2, :, :].t().numpy()
+                accompaniment = targets[0, 3, :, :].t().numpy()
 
-                estimates = {
-                    "vocals": predictions[0, 0, :, :].numpy(),
-                    "drums": predictions[0, 1, :, :].numpy(),
-                    "bass": predictions[0, 2, :, :].numpy(),
-                    "accompaniment": predictions[0, 3, :, :].numpy(),
-                }
-                true_values = {
-                    "vocals": targets[0, 0, :lim, :].t().numpy(),
-                    "drums": targets[0, 1, :lim, :].t().numpy(),
-                    "bass": targets[0, 2, :lim, :].t().numpy(),
-                    "accompaniment": targets[0, 3, :lim, :].t().numpy(),
-                }
-                    
-                true_values["vocals"] = protect_non_zeros(true_values["vocals"])
-                true_values["drums"] = protect_non_zeros(true_values["drums"])
-                true_values["bass"] = protect_non_zeros(true_values["bass"])
-                true_values["accompaniment"] = protect_non_zeros(true_values["accompaniment"])
+                # SDR
+                vocals_sdr = self.get_sdr(vocals, vocals_hat)
+                drums_sdr = self.get_sdr(drums, drums_hat)
+                bass_sdr = self.get_sdr(bass, bass_hat)
+                accompaniment_sdr = self.get_sdr(
+                    accompaniment, accompaniment_hat)
+                sdr = np.array(
+                    [vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
 
-                vocals_sdr, _, _, _ = bss_eval_sources(true_values["vocals"], estimates["vocals"])
-                drums_sdr, _, _, _ = bss_eval_sources(true_values["drums"], estimates["drums"])
-                bass_sdr, _, _, _ = bss_eval_sources(true_values["bass"], estimates["bass"])
-                accompaniment_sdr, _, _, _ = bss_eval_sources(true_values["accompaniment"], estimates["accompaniment"])
+                print("\n")
+                print(self.result_report["all_sdrs"])
 
-                vocals_sdr = vocals_sdr.mean()
-                drums_sdr = drums_sdr.mean()
-                bass_sdr = bass_sdr.mean()
-                accompaniment_sdr = accompaniment_sdr.mean()
-                sdr = np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
+                # Keep track of SDR values
+                self.result_report["all_sdrs"].append(sdr)
+                self.result_report["all_vocals_sdrs"].append(vocals_sdr)
+                self.result_report["all_drums_sdrs"].append(drums_sdr)
+                self.result_report["all_bass_sdrs"].append(bass_sdr)
+                self.result_report["all_accompaniment_sdrs"].append(
+                    accompaniment_sdr)
 
-                self.all_sdrs.append(sdr)
-                self.all_vocals_sdrs.append(vocals_sdr)
-                self.all_drums_sdrs.append(drums_sdr)
-                self.all_bass_sdrs.append(bass_sdr)
-                self.all_accompaniment_sdrs.append(accompaniment_sdr)
-
+                # Create audio folder if it doesn't already exists
                 results_path = self.hparams.save_folder + "/audio_results"
-
                 if not os.path.exists(results_path):
                     os.makedirs(results_path)
 
-                if i < 5:
-                    torchaudio.save(
-                        filepath=results_path + "/song_{}_mix.wav".format(i),
-                        src=mixture[0, :, :lim],
-                        sample_rate=44100
-                    )
-                    torchaudio.save(
-                        filepath=results_path + "/song_{}_drums_hat.wav".format(i),
-                        src=predictions[0, 0, :, :],
-                        sample_rate=44100
-                    )
-                    torchaudio.save(
-                        filepath=results_path + "/song_{}_bass_hat.wav".format(i),
-                        src=predictions[0, 1, :, :],
-                        sample_rate=44100
-                    )
-                    torchaudio.save(
-                        filepath=results_path + "/song_{}_accompaniment_hat.wav".format(i),
-                        src=predictions[0, 2, :, :],
-                        sample_rate=44100
-                    )
-                    torchaudio.save(
-                        filepath=results_path + "/song_{}_vocals_hat.wav".format(i),
-                        src=predictions[0, 3, :, :],
-                        sample_rate=44100
-                    )
+                # Save only examples of the best results
+                if sdr > 4.0:
+                    self.save_audio(separator.testindex,
+                                    results_path, mixture, predictions, targets)
 
-                    torchaudio.save(
-                        filepath=results_path + "/song_{}_drums.wav".format(i),
-                        src=targets[0, 0, :lim, :].t(),
-                        sample_rate=44100
-                    )
-                    torchaudio.save(
-                        filepath=results_path + "/song_{}_bass.wav".format(i),
-                        src=targets[0, 1, :lim, :].t(),
-                        sample_rate=44100
-                    )
-                    torchaudio.save(
-                        filepath=results_path + "/song_{}_accompaniment.wav".format(i),
-                        src=targets[0, 2, :lim, :].t(),
-                        sample_rate=44100
-                    )
-                    torchaudio.save(
-                        filepath=results_path + "/song_{}_vocals.wav".format(i),
-                        src=targets[0, 3, :lim, :].t(),
-                        sample_rate=44100
-                    )
-
-                self.testindex = self.testindex + 1
+                # Empty loss to satisfy return type of method
                 loss = torch.tensor([0])
-                print(self.all_sdrs)
+
+                # Increment count
+                separator.testindex += 1
 
         return loss.detach()
-
-    def save_results2(self):
-        print("Saving Results...")
-        # Create folders where to store audio
-        save_file = os.path.join(self.hparams.output_folder, "test_results.csv")
-        # CSV columns
-        csv_columns = [
-            "ID",
-            "Vocals SDR",
-            "Drums SDR",
-            "Bass SDR",
-            "Accompaniment SDR",
-            "SDR"
-        ]
-        with open(save_file, "w") as results_csv:
-            writer = csv.DictWriter(results_csv, fieldnames=csv_columns)
-            writer.writeheader()
-            separator.all_sdrs = []
-
-            for i in range(len(self.all_sdrs)):
-                row = {
-                    "ID": i,
-                    "Vocals SDR": self.all_vocals_sdrs[i],
-                    "Drums SDR": self.all_drums_sdrs[i],
-                    "Bass SDR": self.all_bass_sdrs[i],
-                    "Accompaniment SDR": self.all_accompaniment_sdrs[i],
-                    "SDR": self.all_sdrs[i]
-                }
-                writer.writerow(row)
-            row = {
-                "ID": "avg",
-                "Vocals SDR": np.array(self.all_vocals_sdrs).mean(),
-                "Drums SDR": np.array(self.all_drums_sdrs).mean(),
-                "Bass SDR": np.array(self.all_bass_sdrs).mean(),
-                "Accompaniment SDR": np.array(self.all_accompaniment_sdrs).mean(),
-                "SDR": np.array(self.all_sdrs).mean()
-            }
-            writer.writerow(row)
 
     def on_stage_end(self, stage, stage_loss, epoch):
         """Gets called at the end of a epoch."""
@@ -385,7 +296,8 @@ class Separation(sb.Brain):
             )
         elif stage == sb.Stage.TEST:
             self.hparams.train_logger.log_stats(
-                stats_meta={"Epoch loaded": self.hparams.epoch_counter.current},
+                stats_meta={
+                    "Epoch loaded": self.hparams.epoch_counter.current},
                 test_stats=stage_stats,
             )
 
@@ -463,10 +375,10 @@ class Separation(sb.Brain):
             (1,),
         ).item()
         targets = targets[
-            :, randstart : randstart + self.hparams.training_signal_len, :
+            :, randstart: randstart + self.hparams.training_signal_len, :
         ]
         mixture = mixture[
-            :, randstart : randstart + self.hparams.training_signal_len
+            :, randstart: randstart + self.hparams.training_signal_len
         ]
         return mixture, targets
 
@@ -478,23 +390,24 @@ class Separation(sb.Brain):
             if layer != child_layer:
                 self.reset_layer_recursively(child_layer)
 
-    def save_results(self, test_loader):
-        """This script computes the SDR and SI-SNR metrics and saves
-        them into a csv file"""
+    def get_sdr(self, source, prediction):
+        source = self.protect_non_zeros(source)
+        sdr, _, _, _ = bss_eval_sources(source, prediction)
+        return sdr.mean()
 
-        # This package is required for SDR computation
-        from mir_eval.separation import bss_eval_sources
+    def protect_non_zeros(self, source):
+        dims = source.shape[0]
+        for d in range(dims):
+            if np.sum(source[d]) == 0:
+                source[d][0] = 0.001
+        return source
 
+    def save_results(self):
+        print("Saving Results...")
         # Create folders where to store audio
-        save_file = os.path.join(self.hparams.output_folder, "test_results.csv")
-
-        # Variable init
-        all_sdrs = []
-        all_vocals_sdrs = []
-        all_drums_sdrs = []
-        all_bass_sdrs = []
-        all_accompaniment_sdrs = []
-        all_sisnrs = []
+        save_file = os.path.join(
+            self.hparams.output_folder, "test_results.csv")
+        # CSV columns
         csv_columns = [
             "ID",
             "Vocals SDR",
@@ -503,152 +416,81 @@ class Separation(sb.Brain):
             "Accompaniment SDR",
             "SDR"
         ]
-
+        # Create CSV file
         with open(save_file, "w") as results_csv:
             writer = csv.DictWriter(results_csv, fieldnames=csv_columns)
             writer.writeheader()
 
-            # Loop over all test sentence
-            with tqdm(test_loader, dynamic_ncols=True) as t:
-                for i, (mixture, targets) in enumerate(t):
-
-                    inp = inp.to("cpu")
-
-                    predictions, _ = self.compute_forward(
-                        targets=None, inputs=inp, stage=sb.Stage.TEST
-                    )
-
-                    #loss = self.compute_objectives(predictions, targets)
-
-                    predictions = predictions.to("cpu")
-                    mixture = mixture.to("cpu")
-                    targets = targets.to("cpu")
-                    ref = ref.to("cpu")
-                    with torch.no_grad():
-                        mixture = mixture.to("cpu")
-                        targets = targets[0].permute(0, 2, 1).unsqueeze(0).to("cpu")
-                        ref = mixture.mean(dim=0)
-
-                        predictions, _ = self.compute_forward(
-                            targets=None, inputs=mixture, stage=sb.Stage.TEST
-                        )
-
-                        estimates = {
-                            "vocals": predictions[0, 0, :, :].numpy(),
-                            "drums": predictions[0, 1, :, :].numpy(),
-                            "bass": predictions[0, 2, :, :].numpy(),
-                            "accompaniment": predictions[0, 3, :, :].numpy()
-                        }
-                        true_values = {
-                            "vocals": targets[0, 0, :, :].numpy(),
-                            "drums": targets[0, 1, :, :].numpy(),
-                            "bass": targets[0, 2, :, :].numpy(),
-                            "accompaniment": targets[0, 3, :, :].numpy()
-                        }
-                            
-                        true_values["vocals"] = protect_non_zeros(true_values["vocals"])
-                        true_values["drums"] = protect_non_zeros(true_values["drums"])
-                        true_values["bass"] = protect_non_zeros(true_values["bass"])
-                        true_values["accompaniment"] = protect_non_zeros(true_values["accompaniment"])
-
-                        # print("\n")
-                        # print(true_values["vocals"].shape)
-                        # print(estimates["vocals"].shape)
-                        # print(true_values["drums"].shape)
-                        # print(estimates["drums"].shape)
-                        # print(true_values["bass"].shape)
-                        # print(estimates["bass"].shape)
-                        # print(true_values["accompaniment"].shape)
-                        # print(estimates["accompaniment"].shape)
-
-                        vocals_sdr, _, _, _ = bss_eval_sources(true_values["vocals"], estimates["vocals"])
-                        drums_sdr, _, _, _ = bss_eval_sources(true_values["drums"], estimates["drums"])
-                        bass_sdr, _, _, _ = bss_eval_sources(true_values["bass"], estimates["bass"])
-                        accompaniment_sdr, _, _, _ = bss_eval_sources(true_values["accompaniment"], estimates["accompaniment"])
-
-                        vocals_sdr = vocals_sdr.mean()
-                        drums_sdr = drums_sdr.mean()
-                        bass_sdr = bass_sdr.mean()
-                        accompaniment_sdr = accompaniment_sdr.mean()
-                        sdr = np.array([vocals_sdr, drums_sdr, bass_sdr, accompaniment_sdr]).mean()
-
-                        # Compute SI-SNR
-                        #targets_ = targets.reshape(targets.size(0), -1, targets.size(-1))
-                        #print("\n")
-                        #print(predictions.shape)
-                        #print(targets_.shape)
-                        #sisnr = self.compute_objectives(predictions, targets_)
-
-                        # Saving on a csv file
-                        row = {
-                            "ID": i,
-                            #"SI-SNR": -sisnr.item(),
-                            "Vocals SDR": vocals_sdr,
-                            "Drums SDR": drums_sdr,
-                            "Bass SDR": bass_sdr,
-                            "Accompaniment SDR": accompaniment_sdr,
-                            "SDR": sdr
-                        }
-                        writer.writerow(row)
-
-                        # Metric Accumulation
-                        #all_sisnrs.append(-sisnr.item())
-                        all_vocals_sdrs.append(vocals_sdr)
-                        all_drums_sdrs.append(drums_sdr)
-                        all_bass_sdrs.append(bass_sdr)
-                        all_accompaniment_sdrs.append(accompaniment_sdr)
-                        all_sdrs.append(sdr)
-
+            # Loop all instances
+            for i in range(len(self.result_report["all_sdrs"])):
                 row = {
-                    "ID": "avg",
-                    "Vocals SDR": np.array(all_sdrs).mean(),
-                    "Drums SDR": np.array(all_sdrs).mean(),
-                    "Bass SDR": np.array(all_sdrs).mean(),
-                    "Accompaniment SDR": np.array(all_sdrs).mean(),
-                    "SDR": np.array(all_sdrs).mean(),
-                    #"SI-SNR": np.array(all_sisnrs).mean()
+                    "ID": i,
+                    "Vocals SDR": self.result_report["all_vocals_sdrs"][i],
+                    "Drums SDR": self.result_report["all_drums_sdrs"][i],
+                    "Bass SDR": self.result_report["all_bass_sdrs"][i],
+                    "Accompaniment SDR": self.result_report["all_accompaniment_sdrs"][i],
+                    "SDR": self.result_report["all_sdrs"][i],
                 }
                 writer.writerow(row)
 
-        #logger.info("Mean SISNR is {}".format(np.array(all_sisnrs).mean()))
-        logger.info("Mean SDR is {}".format(np.array(all_sdrs).mean()))
+            # Average
+            row = {
+                "ID": "Average",
+                "Vocals SDR": np.mean(self.result_report["all_vocals_sdrs"]),
+                "Drums SDR": np.mean(self.result_report["all_drums_sdrs"]),
+                "Bass SDR": np.mean(self.result_report["all_bass_sdrs"]),
+                "Accompaniment SDR": np.mean(self.result_report["all_accompaniment_sdrs"]),
+                "SDR": np.mean(self.result_report["all_sdrs"]),
+            }
+            writer.writerow(row)
 
-    def save_audio(self, snt_id, mixture, targets, predictions):
-        "saves the test audio (mixture, targets, and estimated sources) on disk"
-
-        # Create outout folder
-        save_path = os.path.join(self.hparams.save_folder, "audio_results")
-        if not os.path.exists(save_path):
-            os.mkdir(save_path)
-
-        for ns in range(self.hparams.num_spks):
-
-            # Estimated source
-            signal = predictions[0, :, ns]
-            signal = signal / signal.abs().max()
-            save_file = os.path.join(
-                save_path, "item{}_source{}hat.wav".format(snt_id, ns + 1)
-            )
-            torchaudio.save(
-                save_file, signal.unsqueeze(0).cpu(), self.hparams.sample_rate
-            )
-
-            # Original source
-            signal = targets[0, :, ns]
-            signal = signal / signal.abs().max()
-            save_file = os.path.join(
-                save_path, "item{}_source{}.wav".format(snt_id, ns + 1)
-            )
-            torchaudio.save(
-                save_file, signal.unsqueeze(0).cpu(), self.hparams.sample_rate
-            )
-
-        # Mixture
-        signal = mixture[1][0, :]
-        signal = signal / signal.abs().max()
-        save_file = os.path.join(save_path, "item{}_mix.wav".format(snt_id))
+    def save_audio(self, i, results_path, mixture, predictions, targets):
+        # Predictions
         torchaudio.save(
-            save_file, signal.unsqueeze(0).cpu(), self.hparams.sample_rate
+            filepath=results_path + "/song_{}_mix.wav".format(i),
+            src=mixture[0, :, :],
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_drums_hat.wav".format(i),
+            src=predictions[0, 0, :, :],
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_bass_hat.wav".format(i),
+            src=predictions[0, 1, :, :],
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_accompaniment_hat.wav".format(i),
+            src=predictions[0, 2, :, :],
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_vocals_hat.wav".format(i),
+            src=predictions[0, 3, :, :],
+            sample_rate=self.hparams.sample_rate
+        )
+        # Targets
+        torchaudio.save(
+            filepath=results_path + "/song_{}_drums.wav".format(i),
+            src=targets[0, 0, :, :].t(),
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_bass.wav".format(i),
+            src=targets[0, 1, :, :].t(),
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_accompaniment.wav".format(i),
+            src=targets[0, 2, :, :].t(),
+            sample_rate=self.hparams.sample_rate
+        )
+        torchaudio.save(
+            filepath=results_path + "/song_{}_vocals.wav".format(i),
+            src=targets[0, 3, :, :].t(),
+            sample_rate=self.hparams.sample_rate
         )
 
 
@@ -662,7 +504,8 @@ class musdb_test_dataset(Dataset):
     def __getitem__(self, idx):
         track = self.mus.tracks[idx]
         track.chunk_duration = 4.0
-        track.chunk_start = np.random.uniform(0, track.duration - track.chunk_duration)
+        track.chunk_start = np.random.uniform(
+            0, track.duration - track.chunk_duration)
         x = torch.from_numpy(track.audio.T).float()
         y = torch.from_numpy(track.stems[1:, :, :]).float()
         return x, y
@@ -733,7 +576,8 @@ if __name__ == "__main__":
         checkpointer=hparams["checkpointer"],
     )
     separator.augment = torch.nn.Sequential(
-        FlipSign(), FlipChannels(), Shift(hparams["sample_rate"]), Remix(group_size=1)
+        FlipSign(), FlipChannels(), Shift(
+            hparams["sample_rate"]), Remix(group_size=1)
     ).to(hparams["device"])
 
     # re-initialize the parameters
@@ -747,22 +591,19 @@ if __name__ == "__main__":
             separator.hparams.epoch_counter, train_loader, valid_loader
         )
 
-    print("Evaluate !")
-
     # Eval
     separator.modules = separator.modules.to('cpu')
     separator.testindex = 0
-    separator.all_scores = []
-    separator.test_mus = test_mus
-    separator.all_sdrs = []
-    separator.all_vocals_sdrs = []
-    separator.all_drums_sdrs = []
-    separator.all_bass_sdrs = []
-    separator.all_accompaniment_sdrs = []
-    separator.all_sisnrs = []
+    separator.result_report = {
+        "all_sdrs": [],
+        "all_vocals_sdrs": [],
+        "all_drums_sdrs": [],
+        "all_bass_sdrs": [],
+        "all_accompaniment_sdrs": []
+    }
 
+    # Evaluate Model
     separator.evaluate(test_loader, min_key="si-snr")
-    separator.save_results2()
 
     # Save Results
-    #separator.save_results(test_loader)
+    separator.save_results()

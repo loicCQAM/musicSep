@@ -36,10 +36,10 @@ import torchaudio
 from hyperpyyaml import load_hyperpyyaml
 from mir_eval.separation import bss_eval_sources
 from speechbrain.processing.signal_processing import normalize
+from speechbrain.processing.speech_augmentation import FlipChannels, FlipSign, Remix, Shift
 from torch.utils.data import DataLoader
 
 # External files
-#from speechbrain.processing.speech_augmentation import FlipChannels, FlipSign, Remix, Shift
 from datasets import MusdbDataset, Rawset
 
 
@@ -158,13 +158,6 @@ class Separation(sb.Brain):
 
                 # Normalize
                 predictions = predictions * ref.std() + ref.mean()
-                test = predictions.squeeze().permute(0, 2, 1)
-                test2 = []
-                for stem in test:
-                    stem = normalize(stem.unsqueeze(0))
-                    test2.append(stem)
-                test2 = torch.stack(test2).permute(1, 0, 3, 2)
-                predictions = test2
 
                 # Predicted Values
                 vocals_hat = predictions[0, 0, :, :].numpy()
@@ -218,10 +211,10 @@ class Separation(sb.Brain):
 
     def augment_data(self, inputs):
         augment = torch.nn.Sequential(
-            sb.processing.speech_augmentation.FlipSign(),
-            sb.processing.speech_augmentation.FlipChannels(),
-            sb.processing.speech_augmentation.Shift(self.hparams.sample_rate),
-            sb.processing.speech_augmentation.Remix(group_size=1)
+            FlipSign(),
+            FlipChannels(),
+            Shift(self.hparams.sample_rate),
+            Remix(group_size=1)
         ).to(self.hparams.device)
         return augment(inputs)
 
