@@ -503,7 +503,7 @@ class musdb_test_dataset(Dataset):
 
     def __getitem__(self, idx):
         track = self.mus.tracks[idx]
-        track.chunk_duration = 10
+        track.chunk_duration = 5
         track.chunk_start = np.random.uniform(
             0, track.duration - track.chunk_duration)
         x = torch.from_numpy(track.audio.T).float()
